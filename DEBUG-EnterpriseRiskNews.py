@@ -4,8 +4,8 @@ import re
 from bs4 import BeautifulSoup
 import pandas as pd
 from dateutil import parser
-from newspaper import Article
-from newspaper import Config
+from newspaper4k import Article
+from newspaper4k import Config
 import datetime as dt
 import nltk
 from googlenewsdecoder import new_decoderv1
