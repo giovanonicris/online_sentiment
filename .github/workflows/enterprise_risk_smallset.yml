@@ -1,4 +1,4 @@
-name: Debug Enterprise Risk - Last 6hrs
+name: Debug Enterprise Risk - Write New Results
 
 on:
   workflow_dispatch:  # only run when manually triggered
