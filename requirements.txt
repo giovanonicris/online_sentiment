@@ -10,4 +10,4 @@ setuptools>=70
 googlenewsdecoder~=0.1.6
 chardet
 certifi
-git+https://github.com/alexmercedcoder/newspaper4k.git
+git+https://github.com/AndyTheFactory/newspaper4k.git
