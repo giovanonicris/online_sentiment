@@ -5,8 +5,8 @@ beautifulsoup4~=4.12.2
 python-dateutil~=2.8.2
 lxml[html_clean]>=4.9.3
 vaderSentiment~=3.3.2
-newspaper3k~=0.2.8
 setuptools>=70
 googlenewsdecoder~=0.1.6
 chardet
 certifi
+newspaper4k @ git+https://github.com/AndyTheFactory/newspaper4k
