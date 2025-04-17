@@ -18,8 +18,13 @@ from urllib.parse import urlparse
 now = dt.date.today()
 yesterday = now - dt.timedelta(days=1)
 
-# Setup requests configurations
-nltk.download('punkt')
+# check and download both punkt and punkt_tab
+for resource in ['punkt', 'punkt_tab']:
+    try:
+        nltk.data.find(f'tokenizers/{resource}')
+    except LookupError:
+        print(f"Downloading missing NLTK resource: {resource}")
+        nltk.download(resource)
 
 # Create a list of random user agents
 user_agent_list = [
@@ -119,7 +124,7 @@ for term in read_file.SEARCH_TERMS.dropna():
 
                 # 3. Skip articles if the URL contains '/en/' (translated articles)
                 if "/en/" in decoded_url:
-                    print(f"Skipping {decoded_url} (Detected translated article)")
+                    print(f"Skipping {decoded_url} (Translated article)")
                     continue  # skip if true
 
                 if decoded_url in existing_links:
@@ -154,9 +159,13 @@ for article_link in link:
         article.download()
         article.parse()
         article.nlp()
-    except:
-        pass
-    summary.append(article.summary)
+    except Exception as e:
+        print(f"nlp failed: {article_link} with {e}")
+    article_text = (article.summary or article.text or "").strip()
+    if len(article_text) < 100:
+        print(f"Skip article - short or missing text: {article_link}")
+        article_text = ''
+    summary.append(article_text)
     keywords.append(article.keywords)
     analyzer = SentimentIntensityAnalyzer().polarity_scores(article.summary)
     comp = analyzer['compound']
@@ -169,9 +178,6 @@ for article_link in link:
     elif comp >= 0.05:
         sentiments.append('positive')
         polarity.append(f'{comp}')
-
-print('Length alert name: ', len(search_terms), ' Length Title: ', len(title), ' Length Link: ', len(link),
-      ' Length KW: ', len(keywords))
 
 alerts = pd.DataFrame({
     'SEARCH_TERMS': search_terms,
