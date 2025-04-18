@@ -196,7 +196,7 @@ print('Created sentiments')
 
 # merge new alerts with search terms data
 joined_df = pd.merge(alerts, read_file, on='SEARCH_TERMS', how='left')
-final_df = joined_df[['ENTERPRISE_RISK_ID', 'TITLE', 'SUMMARY', 'KEYWORDS', 'PUBLISHED_DATE', 'LINK', 'SOURCE', 'SOURCE_URL', 'SENTIMENT', 'POLARITY']]
+final_df = joined_df[['ENTERPRISE_RISK_ID', 'SEARCH_TERM_ID, 'TITLE', 'SUMMARY', 'KEYWORDS', 'PUBLISHED_DATE', 'LINK', 'SOURCE', 'SOURCE_URL', 'SENTIMENT', 'POLARITY']]
 final_df['LAST_RUN_TIMESTAMP'] = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 # load existing data and combine with new entries
