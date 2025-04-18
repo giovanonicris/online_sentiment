@@ -18,8 +18,13 @@ from urllib.parse import urlparse
 now = dt.date.today()
 yesterday = now - dt.timedelta(days=1)
 
-# Setup requests configurations
-nltk.download('punkt')
+# check and download both punkt and punkt_tab
+for resource in ['punkt', 'punkt_tab']:
+    try:
+        nltk.data.find(f'tokenizers/{resource}')
+    except LookupError:
+        print(f"Downloading missing NLTK resource: {resource}")
+        nltk.download(resource)
 
 # Create a list of random user agents
 user_agent_list = [
@@ -154,9 +159,13 @@ for article_link in link:
         article.download()
         article.parse()
         article.nlp()
-    except:
-        pass
-    summary.append(article.summary)
+    except Exception as e:
+        print(f"nlp failed for {article_link}: {e}")
+    article_text = (article.summary or article.text or "").strip()
+    if len(article_text) < 100:
+        print(f"Skip article - short or missing text: {article_link}")
+        article_text = ''
+    summary.append(article_text)
     keywords.append(article.keywords)
     analyzer = SentimentIntensityAnalyzer().polarity_scores(article.summary)
     comp = analyzer['compound']
@@ -169,9 +178,6 @@ for article_link in link:
     elif comp >= 0.05:
         sentiments.append('positive')
         polarity.append(f'{comp}')
-
-print('Length alert name: ', len(search_terms), ' Length Title: ', len(title), ' Length Link: ', len(link),
-      ' Length KW: ', len(keywords))
 
 alerts = pd.DataFrame({
     'SEARCH_TERMS': search_terms,
@@ -208,8 +214,18 @@ combined_df['PUBLISHED_DATE'] = pd.to_datetime(combined_df['PUBLISHED_DATE'], er
 if combined_df['PUBLISHED_DATE'].isna().any():
     print("Warning: Some rows have invalid PUBLISHED_DATE values.")
 
-# save recent data
+# split recent and old data
 recent_df = combined_df[combined_df['PUBLISHED_DATE'] >= six_months_ago].copy()
+old_df = combined_df[combined_df['PUBLISHED_DATE'] < six_months_ago].copy()
+
+# save recent data back to the main CSV
 recent_df.sort_values(by='PUBLISHED_DATE', ascending=False).to_csv(main_csv_path, index=False, encoding='utf-8')
 
 print(f"Updated main CSV with {len(recent_df)} records.")
+
+# archive old data
+archive_csv_path = os.path.join(output_dir, 'emerging_risks_sentiment_archive.csv')
+archive_data = old_df[['EMERGING_RISK_ID', 'TITLE', 'PUBLISHED_DATE', 'LINK', 'SENTIMENT', 'POLARITY', 'LAST_RUN_TIMESTAMP']]
+archive_data.to_csv(archive_csv_path, mode='a', index=False, header=not os.path.exists(archive_csv_path), encoding='utf-8')
+
+print(f"Archived {len(old_df)} records.")
