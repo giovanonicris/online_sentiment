@@ -1,6 +1,10 @@
 name: Heal Emerging and Enterprise Risk Datasets
 
 on:
+  # required to support immutable action downloads
+  permissions:
+    contents: read
+    actions: read
   schedule:
     - cron: '0 0 * * *'  # runs daily at 8:00pm ET
   workflow_dispatch:  # manual trigger
@@ -30,7 +34,7 @@ jobs:
 
       - name: Upload emerging logs
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: emerging-backfill-logs
           path: online_sentiment/output/emerging_risks_online_sentiment.csv
@@ -63,11 +67,11 @@ jobs:
 
       - name: Upload enterprise logs
         if: always()
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: enterprise-backfill-logs
           path: online_sentiment/output/enterprise_risks_online_sentiment.csv
 
       - name: Enterprise data failure notif
         if: failure()
-        run: echo "Backfilling Emerging dataset failed. See logs.""
+        run: echo "Backfilling Emerging dataset failed. See logs."
