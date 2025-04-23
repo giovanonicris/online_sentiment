@@ -1,13 +1,13 @@
 name: Heal Emerging and Enterprise Risk Datasets
 
 on:
-  # required to support immutable action downloads
-  permissions:
-    contents: read
-    actions: read
   schedule:
     - cron: '0 0 * * *'  # runs daily at 8:00pm ET
-  workflow_dispatch:  # manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read  # manual trigger
 
 jobs:
   backfill-emerging:
