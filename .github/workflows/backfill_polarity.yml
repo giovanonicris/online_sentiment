@@ -32,12 +32,10 @@ jobs:
           python scripts/backfill_emerging.py
         continue-on-error: false
 
-      - name: Upload emerging logs
+      - name: Save emerging logs manually
         if: always()
-        uses: actions/upload-artifact@v2
-        with:
-          name: emerging-backfill-logs
-          path: online_sentiment/output/emerging_risks_online_sentiment.csv
+        run: cp online_sentiment/output/emerging_risks_online_sentiment.csv ${{ github.workspace }}/emerging.csv
+        # technical debt! Replace with upload-artifact once GitHub fixes missing download info
 
       - name: Emerging data failure notif
         if: failure()
@@ -65,12 +63,10 @@ jobs:
           python scripts/backfill_enterprise.py
         continue-on-error: false
 
-      - name: Upload enterprise logs
+      - name: Save enterprise logs manually
         if: always()
-        uses: actions/upload-artifact@v2
-        with:
-          name: enterprise-backfill-logs
-          path: online_sentiment/output/enterprise_risks_online_sentiment.csv
+        run: cp online_sentiment/output/enterprise_risks_online_sentiment.csv ${{ github.workspace }}/enterprise.csv
+        # technical debt! Replace with upload-artifact once GitHub fixes missing download info
 
       - name: Enterprise data failure notif
         if: failure()
