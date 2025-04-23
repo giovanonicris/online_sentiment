@@ -36,9 +36,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: log-artifact
-          path: README.md
-        with:
           name: emerging-backfill-logs
           path: online_sentiment/output/emerging_risks_online_sentiment.csv
 
@@ -71,9 +68,6 @@ jobs:
       - name: Upload enterprise logs
         if: always()
         uses: actions/upload-artifact@v3
-        with:
-          name: log-artifact
-          path: README.md
         with:
           name: enterprise-backfill-logs
           path: online_sentiment/output/enterprise_risks_online_sentiment.csv
