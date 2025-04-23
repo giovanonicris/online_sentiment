@@ -1,0 +1,77 @@
+name: Heal Emerging and Enterprise Risk Datasets
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # runs daily at 8:00pm ET
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read  # manual trigger
+
+jobs:
+  backfill-emerging:
+    name: Backfill Emerging Risk
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install newspaper4k vaderSentiment pandas nltk
+
+      - name: Run emerging backfill script
+        run: |
+          python scripts/backfill_emerging.py
+        continue-on-error: false
+
+      - name: Upload emerging logs
+        if: always()
+        uses: actions/upload-artifact@v3@c3adf47f8854b4367e5c72762b083e0b49f85f53
+        with:
+          name: emerging-backfill-logs
+          path: online_sentiment/output/emerging_risks_online_sentiment.csv
+
+      - name: Emerging data failure notif
+        if: failure()
+        run: echo "Backfilling Emerging dataset failed. See logs."
+
+  backfill-enterprise:
+    name: Backfill Enterprise Risk
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install newspaper4k vaderSentiment pandas nltk
+
+      - name: Run enterprise backfill script
+        run: |
+          python scripts/backfill_enterprise.py
+        continue-on-error: false
+
+      - name: Upload enterprise logs
+        if: always()
+        uses: actions/upload-artifact@v3@c3adf47f8854b4367e5c72762b083e0b49f85f53
+        with:
+          name: enterprise-backfill-logs
+          path: online_sentiment/output/enterprise_risks_online_sentiment.csv
+
+      - name: Enterprise data failure notif
+        if: failure()
+        run: echo "Backfilling Emerging dataset failed. See logs."
