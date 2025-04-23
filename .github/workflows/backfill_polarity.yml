@@ -29,7 +29,7 @@ jobs:
 
       - name: Run emerging backfill script
         run: |
-          python scripts/backfill_emerging.py
+          python backfill_emerging.py
         continue-on-error: false
 
       - name: Save emerging logs manually
@@ -60,7 +60,7 @@ jobs:
 
       - name: Run enterprise backfill script
         run: |
-          python scripts/backfill_enterprise.py
+          python backfill_enterprise.py
         continue-on-error: false
 
       - name: Save enterprise logs manually
