@@ -63,7 +63,7 @@ jobs:
 
       - name: Upload enterprise logs
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@3.1.3
         with:
           name: enterprise-backfill-logs
           path: online_sentiment/output/enterprise_risks_online_sentiment.csv
