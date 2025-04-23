@@ -26,17 +26,17 @@ if not os.path.exists(main_csv_path):
     exit(0)
 df = pd.read_csv(main_csv_path, encoding='utf-8')
 df['PUBLISHED_DATE'] = pd.to_datetime(df['PUBLISHED_DATE'], errors='coerce')
+print(df.dtypes)
 
-#BACKFILLING REQUIREMENTS
-# target backfill window
+# BACKFILLING REQUIREMENTS
 start_of_window = pd.to_datetime("2025-03-17")
 end_of_window = pd.to_datetime("2025-04-20")
 
-# filter for rows with missing polarity in the window
+# Include logic for blank or short summary
 missing_df = df[
     (df['PUBLISHED_DATE'] >= start_of_window) &
     (df['PUBLISHED_DATE'] <= end_of_window) &
-    (df['POLARITY'].isna() | (df['POLARITY'] == ''))
+    ((df['SUMMARY'].isna()) | (df['SUMMARY'].str.strip() == '') | (df['SUMMARY'].str.len() < 40))
 ]
 
 if missing_df.empty:
@@ -54,7 +54,7 @@ print(f"Selected 3-day batch: {three_day_range[0]} to {three_day_range[-1]}")
 
 # filter target rows
 target_mask = df['PUBLISHED_DATE'].dt.date.isin(three_day_range) & (
-    df['POLARITY'].isna() | (df['POLARITY'] == '')
+    (df['SUMMARY'].isna()) | (df['SUMMARY'].str.strip() == '') | (df['SUMMARY'].str.len() < 40)
 )
 target_df = df[target_mask].copy()
 
