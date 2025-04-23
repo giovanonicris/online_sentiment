@@ -34,7 +34,7 @@ jobs:
 
       - name: Upload emerging logs
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@f651a04e51ff8a3559b3510a0478bb36b39f9eb2
         with:
           name: emerging-backfill-logs
           path: online_sentiment/output/emerging_risks_online_sentiment.csv
@@ -67,7 +67,7 @@ jobs:
 
       - name: Upload enterprise logs
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@f651a04e51ff8a3559b3510a0478bb36b39f9eb2
         with:
           name: enterprise-backfill-logs
           path: online_sentiment/output/enterprise_risks_online_sentiment.csv
