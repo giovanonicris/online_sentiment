@@ -87,7 +87,9 @@ for idx, row in target_df.iterrows():
         except Exception as e:
             print(f"Direct download failed for {url}, trying fallback: {e}")
             response = requests.get(url, headers={'User-Agent': user_agent}, timeout=20)
+            article.download_state = 2  # set state to SUCCESS
             article.set_html(response.text)
+            article.parse()
             article.parse()
             article.nlp()
         summary = article.summary.strip() if article.summary else article.text.strip()
