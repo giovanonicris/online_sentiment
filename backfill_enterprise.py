@@ -73,13 +73,23 @@ analyzer = SentimentIntensityAnalyzer()
 
 updated = 0
 
+
 for idx, row in target_df.iterrows():
     try:
         url = row['LINK']
         article = Article(url, config=config)
-        article.download()
-        article.parse()
-        article.nlp()
+        # start with newspaper's article
+        try:
+            article.download()
+            article.parse()
+            article.nlp()
+        #falls back to requests.get() if we get a 403 error/ Cloudflare block
+        except Exception as e:
+            print(f"Direct download failed for {url}, trying fallback: {e}")
+            response = requests.get(url, headers={'User-Agent': user_agent}, timeout=20)
+            article.set_html(response.text)
+            article.parse()
+            article.nlp()
         summary = article.summary.strip() if article.summary else article.text.strip()
         if not summary or len(summary) < 40:
             continue
