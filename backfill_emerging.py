@@ -88,7 +88,7 @@ for idx, row in target_df.iterrows():
             print(f"Direct download failed for {url}, trying fallback: {e}")
             response = requests.get(url, headers={'User-Agent': user_agent}, timeout=20)
             article.download_state = 2  # set state to SUCCESS
-            article.set_html(response.text)
+            article.set_html(response.text)  # requires newspaper4k fork
             article.parse()
             article.parse()
             article.nlp()
