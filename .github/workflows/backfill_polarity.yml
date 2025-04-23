@@ -25,11 +25,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install newspaper4k vaderSentiment pandas nltk
+          pip install newspaper4k vaderSentiment pandas nltk lxml-html-clean
 
       - name: Run emerging backfill script
         run: |
-          python backfill_emerging.py
+          python scripts/backfill_emerging.py
         continue-on-error: false
 
       - name: Save emerging logs manually
@@ -56,11 +56,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install newspaper4k vaderSentiment pandas nltk
+          pip install newspaper4k vaderSentiment pandas nltk lxml-html-clean
 
       - name: Run enterprise backfill script
         run: |
-          python backfill_enterprise.py
+          python scripts/backfill_enterprise.py
         continue-on-error: false
 
       - name: Save enterprise logs manually
