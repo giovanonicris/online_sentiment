@@ -83,13 +83,17 @@ for idx, row in target_df.iterrows():
             article.download()
             article.parse()
             article.nlp()
-        #falls back to requests.get() if we get a 403 error/ Cloudflare block
+        # fallback to requests + manual BeautifulSoup extract if download fails
         except Exception as e:
             print(f"Direct download failed for {url}, trying fallback: {e}")
             response = requests.get(url, headers={'User-Agent': user_agent}, timeout=20)
-            article.download_state = 2  # set state to SUCCESS
-            article.set_html(response.text)  # requires newspaper4k fork
-            article.parse()
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(response.text, 'html.parser')
+            body = soup.find('article') or soup.find('main') or soup.find('body')
+            extracted_text = body.get_text(separator=' ', strip=True) if body else ''
+            if not extracted_text or len(extracted_text) < 40:
+                raise ValueError("Fallback content too short or not found")
+            article.set_text(extracted_text)
             article.parse()
             article.nlp()
         summary = article.summary.strip() if article.summary else article.text.strip()
