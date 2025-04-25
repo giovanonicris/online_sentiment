@@ -6,6 +6,7 @@ import datetime as dt
 import nltk
 import random
 import requests
+from bs4 import BeautifulSoup
 
 # check if NLTK dependencies are present
 for resource in ['punkt', 'punkt_tab']:
