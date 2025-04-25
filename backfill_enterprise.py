@@ -21,9 +21,6 @@ main_csv_path = os.path.join(output_dir, 'enterprise_risks_online_sentiment.csv'
 temp_csv_path = os.path.join(output_dir, 'enterprise_risks_online_sentiment_temp.csv')
 
 # load dataset
-if not os.path.exists(main_csv_path):
-    print("Main CSV does not exist, exiting.")
-    exit(0)
 df = pd.read_csv(main_csv_path, encoding='utf-8')
 df['PUBLISHED_DATE'] = pd.to_datetime(df['PUBLISHED_DATE'], errors='coerce')
 print(df.dtypes)
@@ -73,40 +70,30 @@ analyzer = SentimentIntensityAnalyzer()
 
 updated = 0
 
-
 for idx, row in target_df.iterrows():
     try:
         url = row['LINK']
-        article = Article(url, config=config)
-        # start with newspaper's article
-        try:
-            article.download()
-            article.parse()
-            article.nlp()
-        # fallback to requests + manual BeautifulSoup extract if download fails
-        except Exception as e:
-            print(f"Direct download failed for {url}, trying fallback: {e}")
-            response = requests.get(url, headers={'User-Agent': user_agent}, timeout=20)
-            from bs4 import BeautifulSoup
-            soup = BeautifulSoup(response.text, 'html.parser')
-            body = soup.find('article') or soup.find('main') or soup.find('body')
-            extracted_text = body.get_text(separator=' ', strip=True) if body else ''
-            if not extracted_text or len(extracted_text) < 40:
-                raise ValueError("Fallback content too short or not found")
-            article.set_text(extracted_text)
-            article.parse()
-            article.nlp()
-        summary = article.summary.strip() if article.summary else article.text.strip()
-        if not summary or len(summary) < 40:
+        response = requests.get(url, headers={'User-Agent': user_agent}, timeout=20)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        content = (
+            soup.find('meta', attrs={'name': 'description'}) or
+            soup.find('p') or
+            soup.find('title')
+        )
+        snippet = content.get('content') if content and content.has_attr('content') else content.get_text(strip=True) if content else ''
+
+        if not snippet or len(snippet) < 30:
+            print(f"Skipping {url} — no usable text found")
             continue
-        score = analyzer.polarity_scores(summary)['compound']
+
+        score = analyzer.polarity_scores(snippet)['compound']
         sentiment = (
             'positive' if score >= 0.05 else
             'negative' if score <= -0.05 else
             'neutral'
         )
 
-        df.at[idx, 'SUMMARY'] = summary
+        df.at[idx, 'SUMMARY'] = snippet
         df.at[idx, 'SENTIMENT'] = sentiment
         df.at[idx, 'POLARITY'] = score
         df.at[idx, 'LAST_RUN_TIMESTAMP'] = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
