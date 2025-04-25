@@ -77,11 +77,9 @@ for idx, row in target_df.iterrows():
         url = row['LINK']
         response = requests.get(url, headers={'User-Agent': user_agent}, timeout=20)
         soup = BeautifulSoup(response.text, 'html.parser')
-        content = (
-            soup.find('meta', attrs={'name': 'description'}) or
-            soup.find('p') or
-            soup.find('title')
-        )
+        paragraphs = soup.find_all('p')
+        snippet = ' '.join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True))
+        snippet = snippet.strip()
         snippet = content.get('content') if content and content.has_attr('content') else content.get_text(strip=True) if content else ''
 
         if not snippet or len(snippet) < 30:
@@ -103,10 +101,12 @@ for idx, row in target_df.iterrows():
     except Exception as e:
         print(f"Unable to process {row['LINK']}: {e}")
 
+df.update(target_df)
 if updated == 0:
     print("No rows updated — possibly all articles failed or too short.")
 else:
     print(f"Updated {updated} rows. Writing to temp CSV...")
     df.to_csv(temp_csv_path, index=False, encoding='utf-8')
     os.replace(temp_csv_path, main_csv_path)
+    print("Main CSV is overwritten with updated data.")
     print("Main CSV is overwritten with updated data.")
