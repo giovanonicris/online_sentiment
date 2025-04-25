@@ -80,8 +80,6 @@ for idx, row in target_df.iterrows():
         paragraphs = soup.find_all('p')
         snippet = ' '.join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True))
         snippet = snippet.strip()
-        snippet = content.get('content') if content and content.has_attr('content') else content.get_text(strip=True) if content else ''
-
         if not snippet or len(snippet) < 30:
             print(f"Skipping {url} — no usable text found")
             continue
