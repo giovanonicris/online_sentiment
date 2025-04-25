@@ -55,7 +55,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install vaderSentiment pandas nltk lxml-html-clean
+          pip install vaderSentiment pandas nltk lxml-html-clean beautifulsoup4
           pip install git+https://github.com/AndyTheFactory/newspaper4k.git --force-reinstall
 
       - name: Run enterprise backfill script
