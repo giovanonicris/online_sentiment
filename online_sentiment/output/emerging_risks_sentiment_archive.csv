@@ -1001,3 +1001,6 @@ EMERGING_RISK_ID,TITLE,PUBLISHED_DATE,LINK,SENTIMENT,POLARITY,LAST_RUN_TIMESTAMP
 9.0,Trump says he‚Äôll leave abortion to the states. It won‚Äôt be so simple - CNN,2024-11-25,https://amp.cnn.com/cnn/2024/11/25/politics/abortion-trump-leave-to-states,positive,0.064,
 1.0,Europe‚Äôs Richest Economy Struggles As Layoffs Rock The Auto Industry - Forbes,2024-11-25,https://www.forbes.com/sites/chriswestfall/2024/11/25/europes-richest-economy-struggles-as-layoffs-rock-global-auto-industry/,positive,0.063,
 13.0,How To Get Your R√©sum√© Past Artificial Intelligence (AI) Screening - Forbes,2024-11-25,https://www.forbes.com/sites/dianehamilton/2024/11/25/how-to-get-your-rsum-past-artificial-intelligence-ai-screening/,negative,-0.075,
+7.0,Election 2024: Exit polls - CNN,2024-11-26,https://www.cnn.com/election/2024/exit-polls,neutral,1.0,
+10.0,Trump can deter Chinese aggression against Taiwan ‚Äî if he has the will - The Hill,2024-11-26,https://thehill.com/opinion/international/5008911-deterrence-china-taiwan-war/,negative,-0.205,
+4.0,Real Estate Sector & Industry Performance - Bloomberg,2024-11-26,https://www.bloomberg.com/markets/sectors/real-estate,positive,0.23,
