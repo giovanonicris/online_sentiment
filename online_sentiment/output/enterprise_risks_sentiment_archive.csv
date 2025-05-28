@@ -12,3 +12,8 @@ ENTERPRISE_RISK_ID,TITLE,PUBLISHED_DATE,LINK,SENTIMENT,POLARITY,LAST_RUN_TIMESTA
 2,Equifax Data Breach Settlement: Is That Letter Real? Hereâ€™s How To Tell - Forbes,2024-11-27,https://www.forbes.com/sites/larsdaniel/2024/11/27/equifax-data-breach-compensation-is-that-letter-real-heres-how-to-tell/,negative,-0.037,
 2,New Black Friday Online Shopping Warning As Threats Surge 89% - Forbes,2024-11-28,https://www.forbes.com/sites/zakdoffman/2024/11/27/chrome-safari-edge-firefox-threats-surge-89-do-these-5-things-now/,negative,-0.14,
 3,L3C Ed Startup Uses Technology And Gamification To Expand Its Reach - Forbes,2024-11-28,https://www.forbes.com/sites/annefield/2024/11/28/l3c-ed-startup-uses-technology-and-gamification-to-expand-its-reach/,positive,0.082,
+112,DEI: Rollbacks Or Revision Of Diversity Initiatives? - Forbes,2024-11-29,https://www.forbes.com/sites/laurencoulman/2024/11/29/dei-rollbacks-or-revision-of-diversity-initiatives/,positive,0.124,
+5,SEC Includes ESG In Latest Risk Alert For Fund Managers - Forbes,2024-11-29,https://www.forbes.com/sites/jonmcgowan/2024/11/29/sec-includes-esg-in-latest-risk-alert-for-fund-managers/,negative,-0.13,
+3,When Climate Meets Fintech: Is There A Scaleup Problem? - Forbes,2024-11-29,https://www.forbes.com/sites/trevorclawson/2024/11/29/when-climate-meets-fintech-is-there-a-scaleup-problem/,positive,0.112,
+8,How a Lab Leak Could Cause the Next Covid-Like Pandemic - Bloomberg,2024-11-29,https://www.bloomberg.com/news/articles/2024-11-29/how-a-lab-leak-could-cause-the-next-covid-like-pandemic,negative,-0.073,
+5,Trumpâ€™s Treasury nominee faces a tough balancing act - The Hill,2024-11-29,https://thehill.com/opinion/finance/5012319-trump-appoints-bessent-treasury/,positive,0.125,
