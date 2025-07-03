@@ -53,7 +53,7 @@ else:
     existing_links = set()
 
 # encode-decode search terms
-read_file = pd.read_csv('EmergingRisksListEncoded.csv', encoding='utf-8')
+read_file = pd.read_csv('EmergingRisksListEncoded.csv', encoding='utf-8', usecols=['EMERGING_RISK_ID', 'SEARCH_TERM_ID', 'ENCODED_TERMS'])
 read_file['EMERGING_RISK_ID'] = pd.to_numeric(read_file['EMERGING_RISK_ID'], downcast='integer', errors='coerce')
 
 def process_encoded_search_terms(term):
