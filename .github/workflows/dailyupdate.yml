@@ -1,65 +1,61 @@
 name: Daily Data Update with Refresh Log
 
 on:
-  # Runs daily at 3AM Eastern Time (ET)
   schedule:
-    - cron: '0 7 * * *'
-  workflow_dispatch:  # Allow manual triggering
+    - cron: '0 7 * * *'  # 3AM ET
+  workflow_dispatch:
+    inputs:
+      run_job:
+        description: 'Which job to run'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - enterprise
+          - emerging
 
 jobs:
-  update-dataset:
+  update-enterprise-risk:
+    if: github.event_name == 'schedule' || github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'enterprise'
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
-      with:
-        token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
-    - name: Set up Python
-      uses: actions/setup-python@v3
-      with:
-        python-version: '3.9'
+      - uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install lxml[html_clean]
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install lxml[html_clean]
 
-    - name: Create Output Directory
-      run: mkdir -p online_sentiment/output
+      - run: mkdir -p online_sentiment/output
 
-    - name: Run Enterprise Risk News script
-      run: python EnterpriseRiskNews.py
+      - name: Run Enterprise Risk News script
+        run: python EnterpriseRiskNews.py
 
-    - name: Run Emerging Risk News script
-      run: python EmergingRiskNews.py
+  update-emerging-risk:
+    if: github.event_name == 'schedule' || github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'emerging'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
-    - name: Check for Changes
-      id: check_changes
-      run: |
-        git status --porcelain
-        if [[ -z $(git status --porcelain) ]]; then
-          echo "No changes detected."
-          echo "has_changes=false" >> $GITHUB_ENV
-        else
-          echo "Changes detected."
-          echo "has_changes=true" >> $GITHUB_ENV
-        fi
+      - uses: actions/setup-python@v3
+        with:
+          python-version: '3.9'
 
-    - name: Update Daily Refresh Log
-      run: |
-        echo "Last refresh: $(date)" > last_refresh.txt
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install lxml[html_clean]
 
-    - name: Pull Latest Changes and Push Updates
-      if: env.has_changes == 'true'
-      run: |
-        git config --global user.name "GitHub Actions Bot"
-        git config --global user.email "noreply@github.com"
-        git stash
-        git pull --rebase origin main || echo "Pull failed, continuing with commit"
-        git stash pop || echo "No stashed changes to apply"
-        git add .
-        git commit -m "Daily update: $(date)" || echo "No changes to commit"
-        git push origin main || echo "Git push failed!"
+      - run: mkdir -p online_sentiment/output
+
+      - name: Run Emerging Risk News script
+        run: python EmergingRiskNews.py
