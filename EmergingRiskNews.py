@@ -44,6 +44,7 @@ header = {'User-Agent': user_agent}
 # load existing dataset to avoid duplicate fetching
 script_dir = os.path.dirname(os.path.abspath(__file__))
 output_dir = os.path.join(script_dir, 'online_sentiment/output')
+os.makedirs(output_dir, exist_ok=True)
 main_csv_path = os.path.join(output_dir, 'emerging_risks_online_sentiment.csv')
 
 if os.path.exists(main_csv_path):
