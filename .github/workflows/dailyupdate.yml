@@ -2,7 +2,7 @@ name: Daily Data Update with Refresh Log
 
 on:
   schedule:
-    - cron: '0 7 * * *'
+    - cron: '0 7 * * *'  # 3AM ET
   workflow_dispatch:
     inputs:
       run_job:
@@ -17,16 +17,74 @@ on:
 
 jobs:
   update-enterprise-risk:
-    runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'enterprise'
+    runs-on: ubuntu-latest
     steps:
-      - name: Hello from Enterprise
-        run: echo "Enterprise job ran!"
+      - name: Echo selected job
+        run: echo "Job selected: ${{ github.event.inputs.run_job }}"
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install lxml[html_clean]
+      - run: mkdir -p online_sentiment/output
+      - name: Run Enterprise Risk News script
+        run: python EnterpriseRiskNews.py
+      - name: Upload Enterprise CSV
+        uses: actions/upload-artifact@v4
+        with:
+          name: enterprise-output
+          path: |
+            online_sentiment/output/enterprise_risks_online_sentiment.csv
+            online_sentiment/output/enterprise_risks_sentiment_archive.csv
+      - name: Commit Enterprise CSVs
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@users.noreply.github.com"
+          git pull
+          git add online_sentiment/output/enterprise_risks_online_sentiment.csv
+          git add online_sentiment/output/enterprise_risks_sentiment_archive.csv
+          git commit -m "Update Enterprise Risk sentiment CSVs" || echo "No changes to commit"
+          git push
 
   update-emerging-risk:
     needs: update-enterprise-risk
     runs-on: ubuntu-latest
     if: github.event_name == 'schedule' || github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'emerging'
     steps:
-      - name: Hello from Emerging
-        run: echo "Emerging job ran!"
+      - name: Echo selected job
+        run: echo "Job selected: ${{ github.event.inputs.run_job }}"
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.9'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install lxml[html_clean]
+      - run: mkdir -p online_sentiment/output
+      - name: Run Emerging Risk News script
+        run: python EmergingRiskNews.py
+      - name: Upload Emerging CSV
+        uses: actions/upload-artifact@v4
+        with:
+          name: emerging-output
+          path: |
+            online_sentiment/output/emerging_risks_online_sentiment.csv
+            online_sentiment/output/emerging_risks_sentiment_archive.csv
+      - name: Commit Emerging CSVs
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@users.noreply.github.com"
+          git pull
+          git add online_sentiment/output/emerging_risks_online_sentiment.csv
+          git add online_sentiment/output/emerging_risks_sentiment_archive.csv
+          git commit -m "Update Emerging Risk sentiment CSVs" || echo "No changes to commit"
+          git push
