@@ -59,3 +59,9 @@ jobs:
 
       - name: Run Emerging Risk News script
         run: python EmergingRiskNews.py
+
+      - name: Upload CSV output
+        uses: actions/upload-artifact@v4
+        with:
+          name: emerging-risks-sentiment
+          path: online_sentiment/output/emerging_risks_online_sentiment.csv
