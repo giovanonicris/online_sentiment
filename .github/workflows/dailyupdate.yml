@@ -7,7 +7,7 @@ on:
     inputs:
       run_job:
         description: 'Which job to run'
-        required: false
+        required: true
         default: 'all'
         type: choice
         options:
@@ -20,6 +20,9 @@ jobs:
     if: github.event_name == 'schedule' || github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'enterprise'
     runs-on: ubuntu-latest
     steps:
+      - name: Echo selected job
+        run: echo "Job selected: ${{ github.event.inputs.run_job }}"
+
       - uses: actions/checkout@v3
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
@@ -61,6 +64,9 @@ jobs:
     if: github.event_name == 'schedule' || github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'emerging'
     runs-on: ubuntu-latest
     steps:
+      - name: Echo selected job
+        run: echo "Job selected: ${{ github.event.inputs.run_job }}"
+
       - uses: actions/checkout@v3
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
