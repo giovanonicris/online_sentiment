@@ -17,7 +17,7 @@ on:
 
 jobs:
   update-enterprise-risk:
-    if: github.event_name == 'schedule' || github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'enterprise'
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'enterprise' }}
     runs-on: ubuntu-latest
     steps:
       - name: Echo selected job
@@ -61,7 +61,7 @@ jobs:
 
   update-emerging-risk:
     needs: update-enterprise-risk
-    if: github.event_name == 'schedule' || github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'emerging'
+    if: ${{ github.event_name == 'schedule' || github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'emerging' }}
     runs-on: ubuntu-latest
     steps:
       - name: Echo selected job
