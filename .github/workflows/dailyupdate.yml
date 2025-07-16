@@ -38,7 +38,26 @@ jobs:
       - name: Run Enterprise Risk News script
         run: python EnterpriseRiskNews.py
 
+      - name: Upload Enterprise CSV
+        uses: actions/upload-artifact@v4
+        with:
+          name: enterprise-output
+          path: |
+            online_sentiment/output/enterprise_risks_online_sentiment.csv
+            online_sentiment/output/enterprise_risks_sentiment_archive.csv
+
+      - name: Commit Enterprise CSVs
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@users.noreply.github.com"
+          git pull
+          git add online_sentiment/output/enterprise_risks_online_sentiment.csv
+          git add online_sentiment/output/enterprise_risks_sentiment_archive.csv
+          git commit -m "Update Enterprise Risk sentiment CSVs" || echo "No changes to commit"
+          git push
+
   update-emerging-risk:
+    needs: update-enterprise-risk
     if: github.event_name == 'schedule' || github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'emerging'
     runs-on: ubuntu-latest
     steps:
@@ -60,8 +79,20 @@ jobs:
       - name: Run Emerging Risk News script
         run: python EmergingRiskNews.py
 
-      - name: Upload CSV output
+      - name: Upload Emerging CSV
         uses: actions/upload-artifact@v4
         with:
-          name: emerging-risks-sentiment
-          path: online_sentiment/output/emerging_risks_online_sentiment.csv
+          name: emerging-output
+          path: |
+            online_sentiment/output/emerging_risks_online_sentiment.csv
+            online_sentiment/output/emerging_risks_sentiment_archive.csv
+
+      - name: Commit Emerging CSVs
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@users.noreply.github.com"
+          git pull
+          git add online_sentiment/output/emerging_risks_online_sentiment.csv
+          git add online_sentiment/output/emerging_risks_sentiment_archive.csv
+          git commit -m "Update Emerging Risk sentiment CSVs" || echo "No changes to commit"
+          git push
