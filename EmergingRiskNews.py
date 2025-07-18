@@ -208,25 +208,36 @@ else:
 
 combined_df = pd.concat([existing_main_df, final_df], ignore_index=True).drop_duplicates(subset=['TITLE', 'LINK', 'PUBLISHED_DATE'])
 
-# rolling 6-month filter
-six_months_ago = dt.datetime.now() - dt.timedelta(days=6 * 30)
+# rolling 4-month window
+cutoff_date = dt.datetime.now() - dt.timedelta(days=4 * 30)
 combined_df['PUBLISHED_DATE'] = pd.to_datetime(combined_df['PUBLISHED_DATE'], errors='coerce')
 
 if combined_df['PUBLISHED_DATE'].isna().any():
     print("Warning: Some rows have invalid PUBLISHED_DATE values.")
 
-# split recent and old data
-recent_df = combined_df[combined_df['PUBLISHED_DATE'] >= six_months_ago].copy()
-old_df = combined_df[combined_df['PUBLISHED_DATE'] < six_months_ago].copy()
+# separate current and old data
+current_df = combined_df[combined_df['PUBLISHED_DATE'] >= cutoff_date].copy()
+old_df = combined_df[combined_df['PUBLISHED_DATE'] < cutoff_date].copy()
 
-# save recent data back to the main CSV
-recent_df.sort_values(by='PUBLISHED_DATE', ascending=False).to_csv(main_csv_path, index=False, encoding='utf-8')
+# save current data
+current_df.sort_values(by='PUBLISHED_DATE', ascending=False).to_csv(main_csv_path, index=False, encoding='utf-8')
+print(f"Updated main CSV with {len(current_df)} records.")
 
-print(f"Updated main CSV with {len(recent_df)} records.")
+# archive logic: split old data into 4-month chunks
+if not old_df.empty:
+    old_df = old_df.sort_values(by='PUBLISHED_DATE')
+    start_date = old_df['PUBLISHED_DATE'].min()
+    end_date = old_df['PUBLISHED_DATE'].max()
 
-# archive old data
-archive_csv_path = os.path.join(output_dir, 'emerging_risks_sentiment_archive.csv')
-archive_data = old_df[['EMERGING_RISK_ID', 'TITLE', 'PUBLISHED_DATE', 'LINK', 'SENTIMENT', 'POLARITY', 'LAST_RUN_TIMESTAMP']]
-archive_data.to_csv(archive_csv_path, mode='a', index=False, header=not os.path.exists(archive_csv_path), encoding='utf-8')
-
-print(f"Archived {len(old_df)} records.")
+    archive_num = 1
+    window_start = start_date
+    while window_start < end_date:
+        window_end = window_start + pd.DateOffset(months=4)
+        mask = (old_df['PUBLISHED_DATE'] >= window_start) & (old_df['PUBLISHED_DATE'] < window_end)
+        archive_chunk = old_df.loc[mask]
+        if not archive_chunk.empty:
+            archive_path = os.path.join(output_dir, f'emerging_risks_sentiment_archive_{archive_num}.csv')
+            archive_chunk.to_csv(archive_path, index=False, encoding='utf-8')
+            print(f"Archived {len(archive_chunk)} records to {archive_path}.")
+            archive_num += 1
+        window_start = window_end
