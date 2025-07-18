@@ -64,7 +64,6 @@ jobs:
           git push
 
   update-emerging-risk:
-    needs: update-enterprise-risk
     runs-on: ubuntu-latest
     steps:
       - name: Conditionally run Emerging job
