@@ -2,7 +2,7 @@ name: Daily Data Update with Refresh Log
 
 on:
   schedule:
-    - cron: '0 7 * * *'  # 3AM ET
+    - cron: '0 7 * * *'
   workflow_dispatch:
     inputs:
       run_job:
@@ -18,15 +18,11 @@ on:
 jobs:
   update-enterprise-risk:
     runs-on: ubuntu-latest
+    outputs:
+      enterprise_path: ${{ steps.enterprise_output.outputs.file }}
     steps:
-      - name: Conditionally run Enterprise job
-        if: github.event_name == 'schedule' || github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'enterprise'
-        run: echo "Enterprise job triggered by ${{ github.event_name }} with input ${{ github.event.inputs.run_job }}"
-
       - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v3
@@ -38,42 +34,21 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install lxml[html_clean]
-
-      - name: Create output directory
-        run: mkdir -p online_sentiment/output
 
       - name: Run Enterprise Risk News script
         run: python EnterpriseRiskNews.py
 
-      - name: Upload Enterprise CSV
-        uses: actions/upload-artifact@v4
-        with:
-          name: enterprise-output
-          path: |
-            online_sentiment/output/enterprise_risks_online_sentiment.csv
-            online_sentiment/output/enterprise_risks_sentiment_archive.csv
-
-      - name: Commit Enterprise CSVs
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@users.noreply.github.com"
-          git pull
-          git add online_sentiment/output/enterprise_risks_online_sentiment.csv
-          git add online_sentiment/output/enterprise_risks_sentiment_archive.csv
-          git commit -m "Update Enterprise Risk sentiment CSVs" || echo "No changes to commit"
-          git push
+      - name: Save Enterprise CSV Path
+        id: enterprise_output
+        run: echo "file=online_sentiment/output/enterprise_risks_online_sentiment.csv" >> $GITHUB_OUTPUT
 
   update-emerging-risk:
     runs-on: ubuntu-latest
+    outputs:
+      emerging_path: ${{ steps.emerging_output.outputs.file }}
     steps:
-      - name: Conditionally run Emerging job
-        if: github.event_name == 'schedule' || github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'emerging'
-        run: echo "Emerging job triggered by ${{ github.event_name }} with input ${{ github.event.inputs.run_job }}"
-
       - name: Checkout code
         uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
       - name: Set up Python
         uses: actions/setup-python@v3
@@ -86,26 +61,32 @@ jobs:
           pip install -r requirements.txt
           pip install lxml[html_clean]
 
-      - name: Create output directory
-        run: mkdir -p online_sentiment/output
-
       - name: Run Emerging Risk News script
         run: python EmergingRiskNews.py
 
-      - name: Upload Emerging CSV
-        uses: actions/upload-artifact@v4
-        with:
-          name: emerging-output
-          path: |
-            online_sentiment/output/emerging_risks_online_sentiment.csv
-            online_sentiment/output/emerging_risks_sentiment_archive.csv
+      - name: Save Emerging CSV Path
+        id: emerging_output
+        run: echo "file=online_sentiment/output/emerging_risks_online_sentiment.csv" >> $GITHUB_OUTPUT
 
-      - name: Commit Emerging CSVs
+  commit-csvs:
+    runs-on: ubuntu-latest
+    needs: [update-enterprise-risk, update-emerging-risk]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+      - name: Copy CSVs
+        run: |
+          cp ${{ needs.update-enterprise-risk.outputs.enterprise_path }} online_sentiment/output/
+          cp ${{ needs.update-emerging-risk.outputs.emerging_path }} online_sentiment/output/
+
+      - name: Commit CSVs
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@users.noreply.github.com"
           git pull
-          git add online_sentiment/output/emerging_risks_online_sentiment.csv
-          git add online_sentiment/output/emerging_risks_sentiment_archive.csv
-          git commit -m "Update Emerging Risk sentiment CSVs" || echo "No changes to commit"
+          git add online_sentiment/output/*.csv
+          git commit -m "Update Enterprise and Emerging Risk CSVs" || echo "No changes to commit"
           git push
