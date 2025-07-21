@@ -77,11 +77,6 @@ jobs:
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
-      - name: Copy CSVs
-        run: |
-          cp ${{ needs.update-enterprise-risk.outputs.enterprise_path }} online_sentiment/output/
-          cp ${{ needs.update-emerging-risk.outputs.emerging_path }} online_sentiment/output/
-
       - name: Commit CSVs
         run: |
           git config --global user.name "github-actions"
