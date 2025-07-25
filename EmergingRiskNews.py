@@ -14,6 +14,14 @@ import os
 import chardet
 from urllib.parse import urlparse
 
+# DEBUG META INFO
+print("*" * 50)
+print(f"Script started at: {dt.datetime.now()}")
+print(f"Working directory: {os.getcwd()}")
+print(f"Directory contents: {os.listdir('.')}")
+print(f"Script file location: {os.path.abspath(__file__)}")
+print("*" * 50)
+
 # Set dates for today and yesterday
 now = dt.date.today()
 yesterday = now - dt.timedelta(days=1)
@@ -56,6 +64,13 @@ else:
 # encode-decode search terms
 read_file = pd.read_csv('EmergingRisksListEncoded.csv', encoding='utf-8', usecols=['EMERGING_RISK_ID', 'SEARCH_TERM_ID', 'ENCODED_TERMS'])
 read_file['EMERGING_RISK_ID'] = pd.to_numeric(read_file['EMERGING_RISK_ID'], downcast='integer', errors='coerce')
+
+# DEBUG FOR SEARCH TERMS
+print("*" * 50)
+print(f"Loaded {len(read_file)} search terms")
+print(f"Valid search terms: {read_file['SEARCH_TERMS'].dropna().tolist()}")
+print("*" * 50)
+
 
 def process_encoded_search_terms(term):
     try:
@@ -153,6 +168,12 @@ for term in read_file.SEARCH_TERMS.dropna():
 
 print('Created lists')
 
+# DEBUG AFTER COLLECTING ARTICLES
+print("*" * 50)
+print(f"Found {len(link)} articles before processing")
+print(f"Existing links count: {len(existing_links)}")
+print("*" * 50)
+
 # Find article information
 for article_link in link:
     article = Article(article_link, config=config)
@@ -192,7 +213,8 @@ alerts = pd.DataFrame({
     'SENTIMENT': sentiments,
     'POLARITY': polarity
 })
-
+print(f"Found {len(link)} articles before processing")
+print(f"Existing links count: {len(existing_links)}")
 print('Created sentiments')
 
 # merge new alerts with search terms data
@@ -200,11 +222,32 @@ joined_df = pd.merge(alerts, read_file, on='SEARCH_TERMS', how='left')
 final_df = joined_df[['EMERGING_RISK_ID', 'SEARCH_TERM_ID', 'TITLE', 'SUMMARY', 'KEYWORDS', 'PUBLISHED_DATE', 'LINK', 'SOURCE', 'SOURCE_URL', 'SENTIMENT', 'POLARITY']]
 final_df['LAST_RUN_TIMESTAMP'] = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
+print("*" * 50)
+print("ARTICLE PROCESSING RESULTS:")
+print(f"Processed {len(summary)} articles")
+print(f"Final DataFrame shape: {final_df.shape}")
+print(f"Final DataFrame columns: {final_df.columns.tolist()}")
+print("*" * 50)
+if len(final_df) > 0:
+    print("See sample of final data here:")
+    print(final_df.head(2))
+else:
+    print("WARNING!!! Final DataFrame is empty!")
+print("*" * 50)
+
 # load existing data and combine with new entries
 if os.path.exists(main_csv_path):
     existing_main_df = pd.read_csv(main_csv_path, parse_dates=['PUBLISHED_DATE'], encoding='utf-8')
 else:
     existing_main_df = pd.DataFrame()
+
+# DEBUG BEFORE SAVING
+print("*" * 50)
+if not final_df.empty:
+    print(f"Saving {len(final_df)} new records")
+else:
+    print("WARNING!!! No new records to save!")
+print("*" * 50)
 
 combined_df = pd.concat([existing_main_df, final_df], ignore_index=True).drop_duplicates(subset=['TITLE', 'LINK', 'PUBLISHED_DATE'])
 
@@ -219,9 +262,24 @@ if combined_df['PUBLISHED_DATE'].isna().any():
 current_df = combined_df[combined_df['PUBLISHED_DATE'] >= cutoff_date].copy()
 old_df = combined_df[combined_df['PUBLISHED_DATE'] < cutoff_date].copy()
 
+# DEBUG AFTER COMBINING DATA
+print("*" * 50)
+print(f"Combined DataFrame shape: {combined_df.shape}")
+print(f"Current DataFrame shape (after filtering): {current_df.shape}")
+print("*" * 50)
+
 # save current data
 current_df.sort_values(by='PUBLISHED_DATE', ascending=False).to_csv(main_csv_path, index=False, encoding='utf-8')
 print(f"Updated main CSV with {len(current_df)} records.")
+
+# DEBUG VERIFY FILE
+print("*" * 50)
+if os.path.exists(main_csv_path):
+    file_size = os.path.getsize(main_csv_path)
+    print(f"Output file exists. Size: {file_size}")
+else:
+    print("ERROR!!! Output file was not created!")
+print("*" * 50)
 
 # archive logic: split old data into 4-month chunks
 if not old_df.empty:
