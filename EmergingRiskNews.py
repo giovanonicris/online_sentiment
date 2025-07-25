@@ -1,3 +1,5 @@
+# 7/25/25 - CG adds a Debug mode for easier debugging and testing
+
 import requests
 import random
 import re
@@ -14,8 +16,20 @@ import os
 import chardet
 from urllib.parse import urlparse
 
+# IMPORTANT!!!
+# DEBUG MODE SETTINGS - CHANGE THIS TO False WHEN RUNNING IN PROD
+DEBUG_MODE = True
+MAX_SEARCH_TERMS = 2 if DEBUG_MODE else None
+MAX_ARTICLES_PER_TERM = 3 if DEBUG_MODE else None
+SKIP_ARTICLE_PROCESSING = True if DEBUG_MODE else False
+
 # DEBUG META INFO
 print("*" * 50)
+print(f"DEBUG_MODE: {DEBUG_MODE}")
+if DEBUG_MODE:
+    print(f"   - Limited to {MAX_SEARCH_TERMS} search terms")
+    print(f"   - Max {MAX_ARTICLES_PER_TERM} articles per term")
+    print(f"   - Skip article processing: {SKIP_ARTICLE_PROCESSING}")
 print(f"Script started at: {dt.datetime.now()}")
 print(f"Working directory: {os.getcwd()}")
 print(f"Directory contents: {os.listdir('.')}")
@@ -46,7 +60,9 @@ user_agent_list = [
 config = Config()
 user_agent = random.choice(user_agent_list)
 config.browser_user_agent = user_agent
-config.request_timeout = 20
+config.enable_image_fetching = False  # Disable image fetching for speed
+# DEBUG: Set faster request timeout in debug mode
+config.request_timeout = 10 if DEBUG_MODE else 20
 header = {'User-Agent': user_agent}
 
 # load existing dataset to avoid duplicate fetching
@@ -55,22 +71,36 @@ output_dir = os.path.join(script_dir, 'online_sentiment/output')
 os.makedirs(output_dir, exist_ok=True)
 main_csv_path = os.path.join(output_dir, 'emerging_risks_online_sentiment.csv')
 
-if os.path.exists(main_csv_path):
-    existing_df = pd.read_csv(main_csv_path, usecols=lambda x: 'LINK' in x, encoding="utf-8")
-    existing_links = set(existing_df["LINK"].dropna().str.lower().str.strip())  # normalize existing links for efficient processing
-else:
+print("*" * 50)
+print("PATH INFORMATION:")
+print(f"Script directory: {script_dir}")
+print(f"Output directory: {output_dir}")
+print(f"Main CSV path: {main_csv_path}")
+print(f"Output directory exists: {os.path.exists(output_dir)}")
+print("*" * 50)
+
+# Skip existing links check in debug mode for speed
+if DEBUG_MODE:
     existing_links = set()
+    print("DEBUGGING - skipping existing links check for faster testing")
+else:
+    if os.path.exists(main_csv_path):
+        existing_df = pd.read_csv(main_csv_path, usecols=lambda x: 'LINK' in x, encoding="utf-8")
+        existing_links = set(existing_df["LINK"].dropna().str.lower().str.strip())
+    else:
+        existing_links = set()
 
 # encode-decode search terms
-read_file = pd.read_csv('EmergingRisksListEncoded.csv', encoding='utf-8', usecols=['EMERGING_RISK_ID', 'SEARCH_TERM_ID', 'ENCODED_TERMS'])
-read_file['EMERGING_RISK_ID'] = pd.to_numeric(read_file['EMERGING_RISK_ID'], downcast='integer', errors='coerce')
-
-# DEBUG FOR SEARCH TERMS
-print("*" * 50)
-print(f"Loaded {len(read_file)} search terms")
-print(f"Valid search terms: {read_file['SEARCH_TERMS'].dropna().tolist()}")
-print("*" * 50)
-
+try:
+    read_file = pd.read_csv('EmergingRisksListEncoded.csv', encoding='utf-8', usecols=['EMERGING_RISK_ID', 'SEARCH_TERM_ID', 'ENCODED_TERMS'])
+    read_file['EMERGING_RISK_ID'] = pd.to_numeric(read_file['EMERGING_RISK_ID'], downcast='integer', errors='coerce')
+    print(f"Successfully loaded: EmergingRisksListEncoded.csv with {len(read_file)} rows")
+except FileNotFoundError:
+    print("ERROR!!! EmergingRisksListEncoded.csv not found!")
+    exit(1)
+except Exception as e:
+    print(f"ERROR!!! loading EmergingRisksListEncoded.csv: {e}")
+    exit(1)
 
 def process_encoded_search_terms(term):
     try:
@@ -83,6 +113,19 @@ def process_encoded_search_terms(term):
         return None
 
 read_file['SEARCH_TERMS'] = read_file['ENCODED_TERMS'].apply(process_encoded_search_terms)
+
+# DEBUG FOR SEARCH TERMS
+print("*" * 50)
+print("SEARCH TERMS INFORMATION:")
+print(f"Loaded {len(read_file)} total rows from file")
+valid_terms = read_file['SEARCH_TERMS'].dropna()
+print(f"Valid search terms ({len(valid_terms)}): {valid_terms.tolist()}")
+
+# DEBUG MODE: Limit search terms for testing
+if DEBUG_MODE and MAX_SEARCH_TERMS:
+    valid_terms = valid_terms.head(MAX_SEARCH_TERMS)
+    print(f"DEBUG: Limited to {len(valid_terms)} terms: {valid_terms.tolist()}")
+print("*" * 50)
 
 # prep lists to store new entries
 search_terms = []
@@ -100,19 +143,29 @@ polarity = []
 filter_out_path = 'filter_out_sources.csv'
 if os.path.exists(filter_out_path):
     filter_out_df = pd.read_csv(filter_out_path, encoding='utf-8')
-    filtered_sources = set(filter_out_df.iloc[:, 0].dropna().str.lower().str.strip())  #only 1 column, use it.
+    filtered_sources = set(filter_out_df.iloc[:, 0].dropna().str.lower().str.strip())
+    print(f"Loaded {len(filtered_sources)} filtered sources")
 else:
     filtered_sources = set()
+    print("filter_out_sources.csv not found - no source filtering")
     
 # Grab Google links
 url_start = 'https://news.google.com/rss/search?q={'
 url_end = '}%20when%3A1d'  # fetch only recent articles
 
-for term in read_file.SEARCH_TERMS.dropna():
+for term in valid_terms:
+    print(f"Processing search term: '{term}'")
     try:
         req = requests.get(url=url_start + term + url_end, headers=header)
         soup = BeautifulSoup(req.text, 'xml')
+        
+        article_count = 0
         for item in soup.find_all("item"):
+            # Debug mode: limit articles per term
+            if DEBUG_MODE and MAX_ARTICLES_PER_TERM and article_count >= MAX_ARTICLES_PER_TERM:
+                print(f"DEBUG: Stopping at {MAX_ARTICLES_PER_TERM} articles for term '{term}'")
+                break
+                
             title_text = item.title.text.strip()
             encoded_url = item.link.text.strip()
             source_text = item.source.text.strip().lower()
@@ -121,7 +174,7 @@ for term in read_file.SEARCH_TERMS.dropna():
             decoded_url = new_decoderv1(encoded_url, interval=interval_time)
 
             if decoded_url.get("status"):
-                decoded_url = decoded_url['decoded_url'].strip().lower()  # normalize link to check duplicates
+                decoded_url = decoded_url['decoded_url'].strip().lower()
                 
                 parsed_url = urlparse(decoded_url)
                 domain_name = parsed_url.netloc.lower()
@@ -130,28 +183,33 @@ for term in read_file.SEARCH_TERMS.dropna():
                 # 1. Valid domain extension only
                 valid_extensions = ('.com', '.edu', '.org', '.net')
                 if not any(domain_name.endswith(ext) for ext in valid_extensions):
-                    print(f"Skipping {decoded_url} (Invalid domain extension)")
-                    continue  # skip where domain extension is not valid
+                    if DEBUG_MODE:
+                        print(f"Skipping {decoded_url} (Invalid domain extension)")
+                    continue
 
                 # 2. Check if the source name is in filter-out list
                 if source_text in filtered_sources:
-                    print(f"Skipping article from {source_text} (Filtered source)")
-                    continue  # skip if true
+                    if DEBUG_MODE:
+                        print(f"Skipping article from {source_text} (Filtered source)")
+                    continue
 
                 # 3. Skip articles if the URL contains '/en/' (translated articles)
                 if "/en/" in decoded_url:
-                    print(f"Skipping {decoded_url} (Detected translated article)")
-                    continue  # skip if true
+                    if DEBUG_MODE:
+                        print(f"Skipping {decoded_url} (Detected translated article)")
+                    continue
 
                 if decoded_url in existing_links:
-                    continue  # skip if article was previously collected
+                    if DEBUG_MODE:
+                        print(f"Skipping {decoded_url} (Already exists)")
+                    continue
                 
                 title.append(title_text)
                 search_terms.append(term)
                 source.append(source_text)
                 link.append(decoded_url)
                 
-                #date has to work for deduping
+                # date parsing
                 try:
                     published.append(parser.parse(item.pubDate.text).date())
                 except (ValueError, TypeError):
@@ -160,7 +218,10 @@ for term in read_file.SEARCH_TERMS.dropna():
 
                 regex_pattern = re.compile('(https?):((|(\\\\))+[\w\d:#@%;$()~_?\+-=\\\.&]*)')
                 domain_search = regex_pattern.search(str(item.source))
-                domain.append(domain_search.group(0) if domain_search else None) # prevent AttributeError: 'NoneType'
+                domain.append(domain_search.group(0) if domain_search else None)
+                
+                article_count += 1
+                
             else:
                 print("Error:", decoded_url['message'])
     except requests.exceptions.RequestException as e:
@@ -174,33 +235,49 @@ print(f"Found {len(link)} articles before processing")
 print(f"Existing links count: {len(existing_links)}")
 print("*" * 50)
 
-# Find article information
-for article_link in link:
-    article = Article(article_link, config=config)
-    try:
-        article.download()
-        article.parse()
-        article.nlp()
-    except Exception as e:
-        print(f"nlp failed for {article_link}: {e}")
-    article_text = (article.summary or article.text or "").strip()
-    if len(article_text) < 100:
-        print(f"Skip article - short or missing text: {article_link}")
-        article_text = ''
-    summary.append(article_text)
-    keywords.append(article.keywords)
-    analyzer = SentimentIntensityAnalyzer().polarity_scores(article.summary)
-    comp = analyzer['compound']
-    if comp <= -0.05:
-        sentiments.append('negative')
-        polarity.append(f'{comp}')
-    elif -0.05 < comp < 0.05:
+# Article processing - WITH DEBUG MODE OPTION
+if SKIP_ARTICLE_PROCESSING:
+    print("DEBUGGING: Skipping slow article processing, using dummy data")
+    for i in range(len(link)):
+        summary.append("DEBUG: Article processing skipped for faster testing")
+        keywords.append(["debug", "test"])
         sentiments.append('neutral')
-        polarity.append(f'{comp}')
-    elif comp >= 0.05:
-        sentiments.append('positive')
-        polarity.append(f'{comp}')
+        polarity.append('0.0')
+    print(f"DEBUGGING: Added dummy data for {len(link)} articles")
+else:
+    print("Processing articles with newspaper library...")
+    for i, article_link in enumerate(link):
+        print(f"Processing article {i+1}/{len(link)}: {article_link}")
+        article = Article(article_link, config=config)
+        try:
+            article.download()
+            article.parse()
+            article.nlp()
+        except Exception as e:
+            print(f"nlp failed for {article_link}: {e}")
+        
+        article_text = (article.summary or article.text or "").strip()
+        if len(article_text) < 100:
+            print(f"Skip article - short or missing text: {article_link}")
+            article_text = ''
+        
+        summary.append(article_text)
+        keywords.append(article.keywords)
+        
+        # Sentiment analysis
+        analyzer = SentimentIntensityAnalyzer().polarity_scores(article.summary)
+        comp = analyzer['compound']
+        if comp <= -0.05:
+            sentiments.append('negative')
+            polarity.append(f'{comp}')
+        elif -0.05 < comp < 0.05:
+            sentiments.append('neutral')
+            polarity.append(f'{comp}')
+        elif comp >= 0.05:
+            sentiments.append('positive')
+            polarity.append(f'{comp}')
 
+# Create DataFrame
 alerts = pd.DataFrame({
     'SEARCH_TERMS': search_terms,
     'TITLE': title,
@@ -213,8 +290,7 @@ alerts = pd.DataFrame({
     'SENTIMENT': sentiments,
     'POLARITY': polarity
 })
-print(f"Found {len(link)} articles before processing")
-print(f"Existing links count: {len(existing_links)}")
+
 print('Created sentiments')
 
 # merge new alerts with search terms data
@@ -223,13 +299,11 @@ final_df = joined_df[['EMERGING_RISK_ID', 'SEARCH_TERM_ID', 'TITLE', 'SUMMARY', 
 final_df['LAST_RUN_TIMESTAMP'] = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 print("*" * 50)
-print("ARTICLE PROCESSING RESULTS:")
 print(f"Processed {len(summary)} articles")
 print(f"Final DataFrame shape: {final_df.shape}")
 print(f"Final DataFrame columns: {final_df.columns.tolist()}")
-print("*" * 50)
 if len(final_df) > 0:
-    print("See sample of final data here:")
+    print("Sample of final data:")
     print(final_df.head(2))
 else:
     print("WARNING!!! Final DataFrame is empty!")
@@ -238,8 +312,10 @@ print("*" * 50)
 # load existing data and combine with new entries
 if os.path.exists(main_csv_path):
     existing_main_df = pd.read_csv(main_csv_path, parse_dates=['PUBLISHED_DATE'], encoding='utf-8')
+    print(f"✓ Loaded existing CSV with {len(existing_main_df)} records")
 else:
     existing_main_df = pd.DataFrame()
+    print("No existing CSV found - starting fresh")
 
 # DEBUG BEFORE SAVING
 print("*" * 50)
@@ -276,13 +352,26 @@ print(f"Updated main CSV with {len(current_df)} records.")
 print("*" * 50)
 if os.path.exists(main_csv_path):
     file_size = os.path.getsize(main_csv_path)
-    print(f"Output file exists. Size: {file_size}")
+    print(f"✓ Output file exists at: {main_csv_path}")
+    print(f"✓ File size: {file_size} bytes")
+    
+    # show first few lines of the file, for quick check
+    if file_size > 0:
+        print("Preview file:")
+        try:
+            preview_df = pd.read_csv(main_csv_path).head(2)
+            print(preview_df)
+        except Exception as e:
+            print(f"Could not preview file: {e}")
+    else:
+        print("File is empty!!!")
 else:
-    print("ERROR!!! Output file was not created!")
+    print("ERROR - output file was not created")
+print(f"Script completed at: {dt.datetime.now()}")
 print("*" * 50)
 
-# archive logic: split old data into 4-month chunks
-if not old_df.empty:
+# archive logic - split old data into 4-month chunks (skipping this in debug mode)
+if not DEBUG_MODE and not old_df.empty:
     old_df = old_df.sort_values(by='PUBLISHED_DATE')
     start_date = old_df['PUBLISHED_DATE'].min()
     end_date = old_df['PUBLISHED_DATE'].max()
@@ -299,3 +388,5 @@ if not old_df.empty:
             print(f"Archived {len(archive_chunk)} records to {archive_path}.")
             archive_num += 1
         window_start = window_end
+elif DEBUG_MODE:
+    print("DEBUGGING - skipping archival process")
