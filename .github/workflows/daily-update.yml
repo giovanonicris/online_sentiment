@@ -82,6 +82,9 @@ jobs:
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@users.noreply.github.com"
           git pull
+          ls -la output/  # ← See what files exist
+          git status      # ← See what git detects as changed
           git add output/*.csv
+          git status      # ← See what's staged
           git commit -m "Update Enterprise and Emerging Risk CSVs" || echo "No changes to commit"
           git push
