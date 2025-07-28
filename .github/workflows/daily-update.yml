@@ -76,15 +76,41 @@ jobs:
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-
+  
+      - name: Debug filesystem
+        run: |
+          echo "=== FILESYSTEM DEBUG ==="
+          pwd
+          echo "Repository root contents:"
+          ls -la
+          echo "Output directory contents:"
+          ls -la output/ || echo "output/ directory does not exist"
+          echo "All CSV files in repo:"
+          find . -name "*.csv" -type f
+          echo "========================="
+  
       - name: Commit CSVs
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@users.noreply.github.com"
+          
+          echo "=== GIT STATUS BEFORE ==="
+          git status
+          
+          echo "=== GIT PULL ==="
           git pull
-          ls -la output/  # ← See what files exist
-          git status      # ← See what git detects as changed
-          git add output/*.csv
-          git status      # ← See what's staged
+          
+          echo "=== CHECKING FOR CSV FILES ==="
+          ls -la output/*.csv || echo "No CSV files found in output/"
+          
+          echo "=== GIT ADD ==="
+          git add output/*.csv || echo "Git add failed"
+          
+          echo "=== GIT STATUS AFTER ADD ==="
+          git status
+          
+          echo "=== GIT COMMIT ==="
           git commit -m "Update Enterprise and Emerging Risk CSVs" || echo "No changes to commit"
+          
+          echo "=== GIT PUSH ==="
           git push
