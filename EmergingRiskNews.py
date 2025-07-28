@@ -60,8 +60,8 @@ user_agent_list = [
 config = Config()
 user_agent = random.choice(user_agent_list)
 config.browser_user_agent = user_agent
-config.enable_image_fetching = False  # Disable image fetching for speed
-# DEBUG: Set faster request timeout in debug mode
+config.enable_image_fetching = False  # disable image fetching for speed
+# DEBUG: set faster request timeout in debug mode
 config.request_timeout = 10 if DEBUG_MODE else 20
 header = {'User-Agent': user_agent}
 
