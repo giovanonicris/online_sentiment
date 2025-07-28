@@ -60,14 +60,14 @@ user_agent_list = [
 config = Config()
 user_agent = random.choice(user_agent_list)
 config.browser_user_agent = user_agent
-config.enable_image_fetching = False  # Disable image fetching for speed
-# DEBUG: Set faster request timeout in debug mode
+config.enable_image_fetching = False  # disable image fetching for speed
+# DEBUG: set faster request timeout in debug mode
 config.request_timeout = 10 if DEBUG_MODE else 20
 header = {'User-Agent': user_agent}
 
 # load existing dataset to avoid duplicate fetching
 script_dir = os.path.dirname(os.path.abspath(__file__))
-output_dir = os.path.join(script_dir, 'online_sentiment/output')
+output_dir = os.path.join(script_dir, 'output')
 os.makedirs(output_dir, exist_ok=True)
 main_csv_path = os.path.join(output_dir, 'emerging_risks_online_sentiment.csv')
 
