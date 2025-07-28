@@ -93,24 +93,14 @@ jobs:
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@users.noreply.github.com"
-          
-          echo "=== GIT STATUS BEFORE ==="
-          git status
-          
-          echo "=== GIT PULL ==="
           git pull
           
-          echo "=== CHECKING FOR CSV FILES ==="
-          ls -la output/*.csv || echo "No CSV files found in output/"
-          
-          echo "=== GIT ADD ==="
-          git add output/*.csv || echo "Git add failed"
-          
-          echo "=== GIT STATUS AFTER ADD ==="
-          git status
-          
-          echo "=== GIT COMMIT ==="
-          git commit -m "Update Enterprise and Emerging Risk CSVs" || echo "No changes to commit"
-          
-          echo "=== GIT PUSH ==="
-          git push
+          # Check if there are any changes
+          if git diff --quiet output/*.csv; then
+            echo "No changes detected in CSV files"
+          else
+            echo "Changes detected, committing..."
+            git add output/*.csv
+            git commit -m "Update Enterprise and Emerging Risk CSVs"
+            git push
+          fi
