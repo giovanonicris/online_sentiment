@@ -310,7 +310,7 @@ print("*" * 50)
 # load existing data and combine with new entries
 if os.path.exists(main_csv_path):
     existing_main_df = pd.read_csv(main_csv_path, parse_dates=['PUBLISHED_DATE'], encoding='utf-8')
-    print(f"✓ Loaded existing CSV with {len(existing_main_df)} records")
+    print(f"loaded existing CSV with {len(existing_main_df)} records")
 else:
     existing_main_df = pd.DataFrame()
     print("No existing CSV found - starting fresh")
