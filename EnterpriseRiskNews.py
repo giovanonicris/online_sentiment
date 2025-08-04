@@ -379,7 +379,7 @@ if not DEBUG_MODE and not old_df.empty:
     window_start = start_date
     while window_start < end_date:
         window_end = window_start + pd.DateOffset(months=4)
-        mask = (old_df['PUBLISHED_DATE'] >= window_start) & (old_df['PUBLISHED_DATE'] < window_date)
+        mask = (old_df['PUBLISHED_DATE'] >= window_start) & (old_df['PUBLISHED_DATE'] < window_end)
         archive_chunk = old_df.loc[mask]
         if not archive_chunk.empty:
             archive_path = os.path.join(output_dir, f'enterprise_risks_sentiment_archive_{archive_num}.csv')
