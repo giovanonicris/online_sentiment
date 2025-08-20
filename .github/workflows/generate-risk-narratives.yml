@@ -25,10 +25,14 @@ jobs:
     
     - name: Generate risk narratives
       env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        OPENAI_API_KEY_CG: ${{ secrets.OPENAI_API_KEY_CG }}
       run: |
         cd llm
-        python risk_narrative_generator.py || echo "Script failed, check logs above"
+        echo "Starting Python script..."
+        python risk_narrative_generator.py
+        echo "Python script finished with exit code: $?"
+        echo "Current directory contents:"
+        ls -la
     
     - name: Check for generated files
       run: |
@@ -60,7 +64,15 @@ jobs:
     
     - name: Create summary comment
       run: |
-        echo "## Risk Narratives Generated" >> $GITHUB_STEP_SUMMARY
-        echo "- **Timestamp:** $(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
-        echo "- **Files:** Check the \`llm/\` folder for new narratives" >> $GITHUB_STEP_SUMMARY
-        echo "- **Latest file:** \`llm/emerging_risk_narratives_latest.csv\`" >> $GITHUB_STEP_SUMMARY
+        # Check if files actually exist before claiming success
+        if ls llm/emerging_risk_narratives_*.csv 1> /dev/null 2>&1; then
+          echo "## Risk Narratives Generated Successfully" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp:** $(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- **Files:** Check the \`llm/\` folder for new narratives" >> $GITHUB_STEP_SUMMARY
+          echo "- **Latest file:** \`llm/emerging_risk_narratives_latest.csv\`" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "## Risk Narratives Generation Failed" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp:** $(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status:** No CSV files were generated" >> $GITHUB_STEP_SUMMARY
+          echo "- **Check:** Review the logs above for errors" >> $GITHUB_STEP_SUMMARY
+        fi
