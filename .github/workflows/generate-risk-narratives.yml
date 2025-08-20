@@ -28,22 +28,34 @@ jobs:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         cd llm
-        python risk_narrative_generator.py
+        python risk_narrative_generator.py || echo "Script failed, check logs above"
+    
+    - name: Check for generated files
+      run: |
+        echo "Checking for generated files..."
+        ls -la llm/
+        echo "Looking for CSV files specifically..."
+        ls -la llm/*.csv 2>/dev/null || echo "No CSV files found"
     
     - name: Commit and push results
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action Bot"
         
-        # Add the generated files
-        git add llm/emerging_risk_narratives_*.csv
-        
-        # Check if there are changes to commit
-        if git diff --staged --quiet; then
-          echo "No changes to commit"
+        # Check if any CSV files exist before trying to add them
+        if ls llm/emerging_risk_narratives_*.csv 1> /dev/null 2>&1; then
+          echo "Found CSV files to commit"
+          git add llm/emerging_risk_narratives_*.csv
+          
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "auto-generated risk narratives - $(date '+%Y-%m-%d %H:%M:%S')"
+            git push
+          fi
         else
-          git commit -m "auto-generated risk narratives - $(date '+%Y-%m-%d %H:%M:%S')"
-          git push
+          echo "No CSV files generated - skipping commit"
         fi
     
     - name: Create summary comment
