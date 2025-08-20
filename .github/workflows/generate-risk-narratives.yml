@@ -1,0 +1,59 @@
+name: Generate Risk Narratives
+
+on:
+  # Manual trigger
+  workflow_dispatch:
+  
+  # Trigger when new data is pushed to output folder
+  push:
+    paths:
+      - 'output/emerging_risks_online_sentiment.csv'
+
+jobs:
+  generate-narratives:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch all history for proper commits
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+    
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+    
+    - name: Generate risk narratives
+      env:
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      run: |
+        cd llm
+        python risk_narrative_generator.py
+    
+    - name: Commit and push results
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action Bot"
+        
+        # Add the generated files
+        git add llm/emerging_risk_narratives_*.csv
+        
+        # Check if there are changes to commit
+        if git diff --staged --quiet; then
+          echo "No changes to commit"
+        else
+          git commit -m "auto-generated risk narratives - $(date '+%Y-%m-%d %H:%M:%S')"
+          git push
+        fi
+    
+    - name: Create summary comment
+      run: |
+        echo "## Risk Narratives Generated" >> $GITHUB_STEP_SUMMARY
+        echo "- **Timestamp:** $(date '+%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+        echo "- **Files:** Check the \`llm/\` folder for new narratives" >> $GITHUB_STEP_SUMMARY
+        echo "- **Latest file:** \`llm/emerging_risk_narratives_latest.csv\`" >> $GITHUB_STEP_SUMMARY
