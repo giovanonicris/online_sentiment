@@ -10,3 +10,4 @@ googlenewsdecoder~=0.1.6
 chardet
 certifi
 newspaper4k @ git+https://github.com/AndyTheFactory/newspaper4k
+openai>=1.0.0
