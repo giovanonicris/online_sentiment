@@ -3,11 +3,6 @@ name: Generate Risk Narratives
 on:
   # Manual trigger
   workflow_dispatch:
-  
-  # Trigger when new data is pushed to output folder
-  push:
-    paths:
-      - 'output/emerging_risks_online_sentiment.csv'
 
 jobs:
   generate-narratives:
