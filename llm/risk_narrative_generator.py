@@ -80,12 +80,12 @@ class EmergingRiskNarrativeGenerator:
         return risk_groups
     
     def create_narrative_prompt(self, risk_data, risk_id):
-        """Create prompt for OpenAI to generate narrative"""
+        # create prompt for openai to generate narrative
         
-        # Get key information from the data
+        # get key information from the data
         num_articles = len(risk_data)
         
-        # Get sample headlines/summaries if available
+        # get sample headlines/summaries if available
         text_columns = [col for col in risk_data.columns if any(word in col.lower() for word in ['title', 'summary', 'content', 'text', 'headline'])]
         
         sample_content = ""
@@ -118,7 +118,7 @@ class EmergingRiskNarrativeGenerator:
         return prompt
     
     def generate_narrative(self, risk_data, risk_id):
-        """Generate narrative using OpenAI"""
+        # generate narrative using openai
         prompt = self.create_narrative_prompt(risk_data, risk_id)
         
         try:
@@ -138,14 +138,14 @@ class EmergingRiskNarrativeGenerator:
             return f"Error generating narrative for Risk ID {risk_id}: {e}"
     
     def process_all_risks(self, risk_groups):
-        """Process all risks and generate narratives"""
-        print("Generating AI narratives...")
+        # process all risks and generate narratives
+        print("generating ai narratives...")
         
         results = []
         total_risks = len(risk_groups)
         
         for i, (risk_id, risk_data) in enumerate(risk_groups.items(), 1):
-            print(f"Processing risk {i}/{total_risks}: ID {risk_id}")
+            print(f"processing risk {i}/{total_risks}: id {risk_id}")
             
             narrative = self.generate_narrative(risk_data, risk_id)
             
@@ -159,64 +159,63 @@ class EmergingRiskNarrativeGenerator:
         return results
     
     def save_results(self, results):
-        """Save results to CSV in output folder"""
-        # Create output folder if it doesn't exist
-        output_dir = "../output"  # Save in main output folder
-        os.makedirs(output_dir, exist_ok=True)
-        
+        # save results to csv in llm folder (same folder as script)
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"emerging_risk_narratives_{timestamp}.csv"
-        filepath = os.path.join(output_dir, filename)
         
-        # Also save a latest version (overwrites each time)
-        latest_filepath = os.path.join(output_dir, "emerging_risk_narratives_latest.csv")
+        # also save a latest version (overwrites each time)
+        latest_filename = "emerging_risk_narratives_latest.csv"
         
         df_results = pd.DataFrame(results)
-        df_results.to_csv(filepath, index=False)
-        df_results.to_csv(latest_filepath, index=False)
+        df_results.to_csv(filename, index=False)
+        df_results.to_csv(latest_filename, index=False)
         
-        print(f"Results saved to: {filepath}")
-        print(f"Latest version: {latest_filepath}")
-        return filepath
+        print(f"results saved to: {filename}")
+        print(f"latest version: {latest_filename}")
+        return filename
     
     def run_analysis(self):
-        """Main method to run the complete analysis"""
-        print("🚀 Starting Emerging Risk Narrative Generation...")
+        # main method to run the complete analysis
+        print("starting emerging risk narrative generation...")
         
-        # Load data
+        # load data
         df = self.load_data_from_github()
         if df is None:
             return None
         
-        # Filter to last 4 weeks
+        # filter to last 4 weeks
         df_filtered = self.filter_last_4_weeks(df)
         
-        # Group by risk ID
+        # group by risk id
         risk_groups = self.group_by_risk_id(df_filtered)
         if risk_groups is None:
             return None
         
-        # Generate narratives
+        # generate narratives
         results = self.process_all_risks(risk_groups)
         
-        # Save results
+        # save results
         output_file = self.save_results(results)
         
-        print(f"Analysis complete! Generated narratives for {len(results)} emerging risks")
+        print(f"analysis complete! generated narratives for {len(results)} emerging risks")
         return output_file
 
 def main():
     try:
+        print("initializing generator...")
         generator = EmergingRiskNarrativeGenerator()
+        print("running analysis...")
         output_file = generator.run_analysis()
         
         if output_file:
-            print(f"\nSuccess! Output file: {output_file}")
+            print(f"success! output file: {output_file}")
         else:
-            print("Analysis failed")
+            print("analysis failed - no output file generated")
             
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"error in main: {e}")
+        import traceback
+        traceback.print_exc()
 
 if __name__ == "__main__":
     main()
