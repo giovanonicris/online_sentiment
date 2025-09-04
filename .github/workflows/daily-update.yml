@@ -2,7 +2,7 @@ name: Daily Data Update with Refresh Log
 
 on:
   schedule:
-    - cron: '0 7 * * *'  # runs at 3am
+    - cron: '0 7 * * *'  #runs at 3am
   workflow_dispatch:
     inputs:
       run_job:
@@ -16,8 +16,9 @@ on:
           - emerging
 
 jobs:
-  process-data:
+  process-enterprise:
     runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'enterprise' || github.event.inputs.run_job == '' }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -39,44 +40,100 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install lxml[html_clean]
+          pip install lxml[html_clean] newspaper3k vaderSentiment googlenewsdecoder
 
       - name: Run Enterprise Risk News script
-        if: ${{ github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'enterprise' || github.event.inputs.run_job == '' }}
         run: python EnterpriseRiskNews.py
 
-      - name: Run Emerging Risk News script
-        if: ${{ github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'emerging' || github.event.inputs.run_job == '' }}
-        run: python EmergingRiskNews.py
-
-      - name: Debug filesystem
+      - name: Check CSV size
         run: |
-          echo "****FILESYSTEM DEBUG ******"
-          pwd
-          echo "repo root contains: "
-          ls -la
-          echo "output directory contains:"
-          ls -la output/ || echo "output/ directory does not exist"
-          echo "ALL CSVS in repo:"
-          find . -name "*.csv" -type f
-          echo "CSV sizes:"
-          find output/ -name "*.csv" -type f -exec ls -lh {} \;
-          echo "*******************************"
+          file=output/enterprise_risks_online_sentiment.csv
+          if [ -f "$file" ]; then
+            size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file")
+            if [ $size -gt 50000000 ]; then
+              echo "Error: $file exceeds 50MB ($size bytes)"
+              exit 1
+            fi
+            echo "Enterprise CSV size: $size bytes"
+          else
+            echo "No enterprise CSV found"
+          fi
 
-      - name: Compress CSVs
+      - name: Compress enterprise CSV
         run: |
-          for file in output/*.csv; do
-            gzip "$file" || echo "No CSVs to compress or error occurred"
-          done
+          file=output/enterprise_risks_online_sentiment.csv
+          if [ -f "$file" ]; then
+            gzip "$file"
+          else
+            echo "No enterprise CSV to compress"
+          fi
 
-      - name: Upload compressed artifacts
+      - name: Upload enterprise artifact
         uses: actions/upload-artifact@v3
         with:
-          name: compressed-data
-          path: output/*.csv.gz
+          name: enterprise-data
+          path: output/enterprise_risks_online_sentiment.csv.gz
+
+  process-emerging:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'emerging' || github.event.inputs.run_job == '' }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+
+      - name: Install requirements
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install lxml[html_clean] newspaper3k vaderSentiment googlenewsdecoder
+
+      - name: Run Emerging Risk News script
+        run: python EmergingRiskNews.py
+
+      - name: Check CSV size
+        run: |
+          file=output/emerging_risks_online_sentiment.csv
+          if [ -f "$file" ]; then
+            size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file")
+            if [ $size -gt 50000000 ]; then
+              echo "Error: $file exceeds 50MB ($size bytes)"
+              exit 1
+            fi
+            echo "Emerging CSV size: $size bytes"
+          else
+            echo "No emerging CSV found"
+          fi
+
+      - name: Compress emerging CSV
+        run: |
+          file=output/emerging_risks_online_sentiment.csv
+          if [ -f "$file" ]; then
+            gzip "$file"
+          else
+            echo "No emerging CSV to compress"
+          fi
+
+      - name: Upload emerging artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: emerging-data
+          path: output/emerging_risks_online_sentiment.csv.gz
 
   publish-data:
-    needs: process-data
+    needs: [process-enterprise, process-emerging]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -85,18 +142,30 @@ jobs:
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ref: data  # Check out the data branch
+          ref: data
 
-      - name: Download compressed artifacts
+      - name: Download enterprise artifact
+        if: ${{ github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'enterprise' || github.event.inputs.run_job == '' }}
         uses: actions/download-artifact@v3
         with:
-          name: compressed-data
+          name: enterprise-data
+          path: output/
+
+      - name: Download emerging artifact
+        if: ${{ github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'emerging' || github.event.inputs.run_job == '' }}
+        uses: actions/download-artifact@v3
+        with:
+          name: emerging-data
           path: output/
 
       - name: Decompress CSVs
         run: |
           for file in output/*.csv.gz; do
-            gunzip -c "$file" > "${file%.gz}" || echo "Error decompressing $file"
+            if [ -f "$file" ]; then
+              gunzip -c "$file" > "${file%.gz}"
+            else
+              echo "No CSVs to decompress"
+            fi
           done
 
       - name: Commit and push CSVs to data branch
@@ -105,7 +174,7 @@ jobs:
           git config --global user.email "github-actions@users.noreply.github.com"
           git checkout -b data || git checkout data
           mkdir -p output
-          mv output/*.csv output/ || echo "No CSVs to move"
+          mv output/*.csv output/ 2>/dev/null || echo "No CSVs to move"
           git add output/*.csv
           if git diff --cached --quiet; then
             echo "No changes detected in the CSV files"
@@ -120,4 +189,10 @@ jobs:
           echo "****FINAL STATE DEBUG ******"
           echo "output directory contains:"
           ls -la output/
+          for file in output/*.csv; do
+            if [ -f "$file" ]; then
+              size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file")
+              echo "File: $file, Size: $size bytes"
+            fi
+          done
           echo "*******************************"
