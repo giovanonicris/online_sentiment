@@ -2,7 +2,7 @@ name: Daily Data Update with Refresh Log
 
 on:
   schedule:
-    - cron: '0 7 * * *'  # Runs at 3am
+    - cron: '0 7 * * *'  #runs at 3am
   workflow_dispatch:
     inputs:
       run_job:
