@@ -142,7 +142,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          ref: data
+          ref: main
 
       - name: Download enterprise artifact
         if: ${{ github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'enterprise' || github.event.inputs.run_job == '' }}
@@ -172,7 +172,7 @@ jobs:
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@users.noreply.github.com"
-          git checkout -b data || git checkout data
+          git checkout main
           mkdir -p output
           mv output/*.csv output/ 2>/dev/null || echo "No CSVs to move"
           git add output/*.csv
