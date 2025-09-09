@@ -1,9 +1,11 @@
 # 7/25/25 - CG adds Debug mode for easier debugging and testing
 # 9/1/25 - CG optimizes GitHub Actions to do the ff: parallel processing, reduct CSV size, limit rates
+# 9/9/25 - CG removes file splitting, optimizes for power bi, reduces csv size, keeps full summaries
 
 import requests
 import random
 import re
+import time
 from bs4 import BeautifulSoup
 import pandas as pd
 from dateutil import parser
@@ -19,12 +21,13 @@ from concurrent.futures import ThreadPoolExecutor
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 import cProfile
+import csv
 
 # IMPORTANT!!!
 # DEBUG MODE SETTINGS - CHANGE THIS TO False WHEN RUNNING IN PROD
 DEBUG_MODE = False
 MAX_SEARCH_TERMS = 2 if DEBUG_MODE else None
-MAX_ARTICLES_PER_TERM = 3 if DEBUG_MODE else None
+MAX_ARTICLES_PER_TERM = 3 if DEBUG_MODE else 20
 SKIP_ARTICLE_PROCESSING = True if DEBUG_MODE else False
 
 # DEBUG META INFO
@@ -44,7 +47,7 @@ print("*" * 50)
 now = dt.date.today()
 yesterday = now - dt.timedelta(days=1)
 
-# Check and download NLTK resources
+# Check and download nltk resources
 for resource in ['punkt', 'punkt_tab']:
     try:
         nltk.data.find(f'tokenizers/{resource}')
@@ -64,16 +67,16 @@ user_agent_list = [
 config = Config()
 user_agent = random.choice(user_agent_list)
 config.browser_user_agent = user_agent
-config.enable_image_fetching = False  # Disable image fetching for speed
+config.enable_image_fetching = False  # disable image fetching for speed
 config.request_timeout = 10 if DEBUG_MODE else 20
 header = {'User-Agent': user_agent}
 
-# Set up requests session with retries
+# set up requests session with retries
 session = requests.Session()
 retries = Retry(total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])
 session.mount('https://', HTTPAdapter(max_retries=retries))
 
-# Load existing dataset to avoid duplicate fetching
+# load existing dataset to avoid duplicate fetching
 script_dir = os.path.dirname(os.path.abspath(__file__))
 output_dir = os.path.join(script_dir, 'output')
 os.makedirs(output_dir, exist_ok=True)
@@ -86,7 +89,7 @@ print(f"Main CSV path: {main_csv_path}")
 print(f"Output directory exists: {os.path.exists(output_dir)}")
 print("*" * 50)
 
-# Skip existing links check in debug mode for speed
+# skip existing links check in debug mode for speed
 if DEBUG_MODE:
     existing_links = set()
     print("DEBUG: Skipping existing links check for faster testing")
@@ -96,6 +99,7 @@ else:
         existing_links = set(existing_df["LINK"].dropna().str.lower().str.strip())
     else:
         existing_links = set()
+        print("No existing CSV found - starting fresh")
 
 # Load and decode search terms
 try:
@@ -127,13 +131,16 @@ print(f"Loaded {len(read_file)} total rows from file")
 valid_terms = read_file['SEARCH_TERMS'].dropna()
 print(f"Valid search terms ({len(valid_terms)}): {valid_terms.tolist()}")
 
-# Limit search terms for testing
+# limit search terms for testing
 if DEBUG_MODE and MAX_SEARCH_TERMS:
     valid_terms = valid_terms.head(MAX_SEARCH_TERMS)
     print(f"DEBUGGING - Limited to {len(valid_terms)} terms: {valid_terms.tolist()}")
+elif len(valid_terms) > 100:
+    valid_terms = valid_terms.head(100)  # limit terms in prod if too many
+    print(f"Limited to {len(valid_terms)} terms to reduce load")
 print("*" * 50)
 
-# Load filter_out_sources.csv
+# load filter_out_sources.csv
 filter_out_path = 'filter_out_sources.csv'
 if os.path.exists(filter_out_path):
     filter_out_df = pd.read_csv(filter_out_path, encoding='utf-8')
@@ -143,18 +150,19 @@ else:
     filtered_sources = set()
     print("filter_out_sources.csv not found - no source filtering")
 
-# Fetch articles concurrently
+# fetch articles concurrently
 def fetch_articles(term):
     print(f"Processing search term: '{term}'")
     url_start = 'https://news.google.com/rss/search?q={'
     url_end = '}%20when%3A1d'
     try:
+        time.sleep(0.5)  # rate limit to avoid 429 errors
         req = session.get(url_start + term + url_end, headers=header)
         soup = BeautifulSoup(req.text, 'xml')
         articles = []
         article_count = 0
-        for item in soup.find_all("item"):
-            if DEBUG_MODE and MAX_ARTICLES_PER_TERM and article_count >= MAX_ARTICLES_PER_TERM:
+        for item in soup.find_all("item")[:10]:  # limit to 10 items per term
+            if article_count >= MAX_ARTICLES_PER_TERM:
                 print(f"DEBUGGING - stopping at {MAX_ARTICLES_PER_TERM} articles for term '{term}'")
                 break
             title_text = item.title.text.strip()
@@ -207,7 +215,7 @@ def fetch_articles(term):
 
 # Fetch articles
 print("Fetching articles concurrently...")
-with ThreadPoolExecutor(max_workers=10) as executor:
+with ThreadPoolExecutor(max_workers=20) as executor:
     results = executor.map(fetch_articles, valid_terms)
     article_data = [item for sublist in results for item in sublist]
 
@@ -231,15 +239,14 @@ print(f"Found {len(link)} articles before processing")
 print(f"Existing links count: {len(existing_links)}")
 print("*" * 50)
 
-# Process articles concurrently
+# process articles concurrently
 def process_article(article_link):
     print(f"Processing article: {article_link}")
-    article = Article(article_link, config=config)
     try:
-        article.download()
-        article.parse()
-        article.nlp()
-        article_text = (article.summary or article.text or "").strip()[:500]  # Truncate to 500 chars
+        time.sleep(0.5)  # rate limit to avoid 429 errors
+        req = session.get(article_link, headers=header)
+        soup = BeautifulSoup(req.text, 'html.parser')
+        article_text = ' '.join([p.text.strip() for p in soup.find_all('p')]) or ""
         if len(article_text) < 100:
             print(f"Skip article - short or missing text: {article_link}")
             article_text = ''
@@ -248,12 +255,12 @@ def process_article(article_link):
         sentiment = 'negative' if comp <= -0.05 else 'positive' if comp >= 0.05 else 'neutral'
         return {
             'summary': article_text,
-            'keywords': article.keywords,
+            'keywords': [],  # empty list, will convert to string later
             'sentiment': sentiment,
             'polarity': f'{comp}'
         }
     except Exception as e:
-        print(f"nlp failed for {article_link}: {e}")
+        print(f"Processing failed for {article_link}: {e}")
         return {'summary': '', 'keywords': [], 'sentiment': 'neutral', 'polarity': '0.0'}
 
 if SKIP_ARTICLE_PROCESSING:
@@ -265,8 +272,8 @@ if SKIP_ARTICLE_PROCESSING:
         polarity.append('0.0')
     print(f"DEBUGGING - added dummy data for {len(link)} articles")
 else:
-    print("Processing articles concurrently with newspaper library...")
-    with ThreadPoolExecutor(max_workers=10) as executor:
+    print("Processing articles concurrently with BeautifulSoup...")
+    with ThreadPoolExecutor(max_workers=20) as executor:
         results = executor.map(process_article, link)
         for result in results:
             summary.append(result['summary'])
@@ -274,16 +281,15 @@ else:
             sentiments.append(result['sentiment'])
             polarity.append(result['polarity'])
 
-# Filter articles to last 24 hours
+# filter articles to last 24 hours
 valid_indices = [i for i, date in enumerate(published) if date and date >= yesterday]
 search_terms = [search_terms[i] for i in valid_indices]
 title = [title[i] for i in valid_indices]
 published = [published[i] for i in valid_indices]
 link = [link[i] for i in valid_indices]
-domain = [domain[i] for i in valid_indices]
 source = [source[i] for i in valid_indices]
 summary = [summary[i] for i in valid_indices]
-keywords = [keywords[i] for i in valid_indices]
+keywords = [','.join(k) for k in [keywords[i] for i in valid_indices]]  # convert to string
 sentiments = [sentiments[i] for i in valid_indices]
 polarity = [polarity[i] for i in valid_indices]
 
@@ -296,7 +302,6 @@ alerts = pd.DataFrame({
     'PUBLISHED_DATE': published,
     'LINK': link,
     'SOURCE': source,
-    'SOURCE_URL': domain,
     'SENTIMENT': sentiments,
     'POLARITY': polarity
 })
@@ -305,7 +310,7 @@ print('Created sentiments')
 
 # Merge with search terms data
 joined_df = pd.merge(alerts, read_file, on='SEARCH_TERMS', how='left')
-final_df = joined_df[['ENTERPRISE_RISK_ID', 'SEARCH_TERM_ID', 'TITLE', 'SUMMARY', 'KEYWORDS', 'PUBLISHED_DATE', 'LINK', 'SOURCE', 'SOURCE_URL', 'SENTIMENT', 'POLARITY']]
+final_df = joined_df[['ENTERPRISE_RISK_ID', 'SEARCH_TERM_ID', 'TITLE', 'SUMMARY', 'KEYWORDS', 'PUBLISHED_DATE', 'LINK', 'SOURCE', 'SENTIMENT', 'POLARITY']]
 final_df['LAST_RUN_TIMESTAMP'] = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 print("*" * 50)
@@ -337,14 +342,14 @@ print("*" * 50)
 
 combined_df = pd.concat([existing_main_df, final_df], ignore_index=True).drop_duplicates(subset=['TITLE', 'LINK', 'PUBLISHED_DATE'])
 
-# Rolling 4-month window
+# rolling 4-month window
 cutoff_date = dt.datetime.now() - dt.timedelta(days=4 * 30)
 combined_df['PUBLISHED_DATE'] = pd.to_datetime(combined_df['PUBLISHED_DATE'], errors='coerce')
 
 if combined_df['PUBLISHED_DATE'].isna().any():
     print("Warning-some rows have invalid PUBLISHED_DATE values.")
 
-# Separate current and old data
+# separate current and old data
 current_df = combined_df[combined_df['PUBLISHED_DATE'] >= cutoff_date].copy()
 old_df = combined_df[combined_df['PUBLISHED_DATE'] < cutoff_date].copy()
 
@@ -354,18 +359,11 @@ print(f"Combined DataFrame shape: {combined_df.shape}")
 print(f"Current DataFrame shape (after filtering): {current_df.shape}")
 print("*" * 50)
 
-# Save current data and split if large
-current_df.sort_values(by='PUBLISHED_DATE', ascending=False).to_csv(main_csv_path, index=False, encoding='utf-8')
+# Save current data
+current_df.sort_values(by='PUBLISHED_DATE', ascending=False).to_csv(main_csv_path, index=False, encoding='utf-8', quoting=csv.QUOTE_MINIMAL)
 file_size = os.path.getsize(main_csv_path)
 print(f"Updated main CSV with {len(current_df)} records.")
-
-if file_size > 50_000_000:  # Split if > 50MB
-    print(f"Main CSV exceeds 50MB ({file_size} bytes), splitting...")
-    chunk_size = 1000
-    for i, chunk in enumerate(pd.read_csv(main_csv_path, chunksize=chunk_size)):
-        chunk.to_csv(os.path.join(output_dir, f'enterprise_risks_online_sentiment_part_{i}.csv'), index=False, encoding='utf-8')
-    os.remove(main_csv_path)  # Remove original
-    print(f"Split into {i+1} parts")
+print(f"File size: {file_size} bytes")
 
 # DEBUG VERIFY FILE
 print("*" * 50)
@@ -383,31 +381,15 @@ if os.path.exists(main_csv_path):
     else:
         print("File is empty!")
 else:
-    print("Checking for split files...")
-    split_files = [f for f in os.listdir(output_dir) if f.startswith('enterprise_risks_online_sentiment_part_')]
-    for file in split_files:
-        file_path = os.path.join(output_dir, file)
-        file_size = os.path.getsize(file_path)
-        print(f"Split file: {file_path}, Size: {file_size} bytes")
+    print("ERROR!!! Output file not created!")
 print(f"Script completed at: {dt.datetime.now()}")
 print("*" * 50)
 
-# Archive old data
+# archive old data
 if not DEBUG_MODE and not old_df.empty:
     old_df = old_df.sort_values(by='PUBLISHED_DATE')
-    start_date = old_df['PUBLISHED_DATE'].min()
-    end_date = old_df['PUBLISHED_DATE'].max()
-    archive_num = 1
-    window_start = start_date
-    while window_start < end_date:
-        window_end = window_start + pd.DateOffset(months=4)
-        mask = (old_df['PUBLISHED_DATE'] >= window_start) & (old_df['PUBLISHED_DATE'] < window_end)
-        archive_chunk = old_df.loc[mask]
-        if not archive_chunk.empty:
-            archive_path = os.path.join(output_dir, f'enterprise_risks_sentiment_archive_{archive_num}.csv')
-            archive_chunk.to_csv(archive_path, index=False, encoding='utf-8')
-            print(f"Archived {len(archive_chunk)} records to {archive_path}.")
-            archive_num += 1
-        window_start = window_end
+    archive_path = os.path.join(output_dir, 'enterprise_risks_sentiment_archive.csv')
+    old_df.to_csv(archive_path, index=False, encoding='utf-8', quoting=csv.QUOTE_MINIMAL)
+    print(f"Archived {len(old_df)} records to {archive_path}.")
 elif DEBUG_MODE:
     print("DEBUGGING- Skipping archival process")
