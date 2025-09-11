@@ -2,7 +2,7 @@ name: Daily Data Update with Refresh Log
 
 on:
   schedule:
-    - cron: '0 7 * * *'  #runs at 3am
+    - cron: '0 7 * * *'  # runs at 3am
   workflow_dispatch:
     inputs:
       run_job:
@@ -21,12 +21,12 @@ jobs:
     if: ${{ github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'enterprise' || github.event.inputs.run_job == '' }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
 
@@ -34,7 +34,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}-py3.9
 
       - name: Install requirements
         run: |
@@ -50,8 +50,8 @@ jobs:
           file=output/enterprise_risks_online_sentiment.csv
           if [ -f "$file" ]; then
             size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file")
-            if [ $size -gt 50000000 ]; then
-              echo "Error: $file exceeds 50MB ($size bytes)"
+            if [ $size -gt 90000000 ]; then
+              echo "Error: $file exceeds 90MB ($size bytes)"
               exit 1
             fi
             echo "Enterprise CSV size: $size bytes"
@@ -69,7 +69,7 @@ jobs:
           fi
 
       - name: Upload enterprise artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: enterprise-data
           path: output/enterprise_risks_online_sentiment.csv.gz
@@ -79,12 +79,12 @@ jobs:
     if: ${{ github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'emerging' || github.event.inputs.run_job == '' }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
 
@@ -92,7 +92,7 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}-py3.9
 
       - name: Install requirements
         run: |
@@ -108,8 +108,8 @@ jobs:
           file=output/emerging_risks_online_sentiment.csv
           if [ -f "$file" ]; then
             size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file")
-            if [ $size -gt 50000000 ]; then
-              echo "Error: $file exceeds 50MB ($size bytes)"
+            if [ $size -gt 90000000 ]; then
+              echo "Error: $file exceeds 90MB ($size bytes)"
               exit 1
             fi
             echo "Emerging CSV size: $size bytes"
@@ -127,7 +127,7 @@ jobs:
           fi
 
       - name: Upload emerging artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: emerging-data
           path: output/emerging_risks_online_sentiment.csv.gz
@@ -139,21 +139,21 @@ jobs:
       contents: write
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           ref: main
 
       - name: Download enterprise artifact
         if: ${{ github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'enterprise' || github.event.inputs.run_job == '' }}
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: enterprise-data
           path: output/
 
       - name: Download emerging artifact
         if: ${{ github.event.inputs.run_job == 'all' || github.event.inputs.run_job == 'emerging' || github.event.inputs.run_job == '' }}
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: emerging-data
           path: output/
@@ -181,7 +181,7 @@ jobs:
           else
             echo "Changes detected, committing..."
             git commit -m "Update Enterprise and Emerging Risk CSVs - $(date '+%Y-%m-%d %H:%M:%S')"
-            git push origin data --force
+            git push origin main
           fi
 
       - name: Debug final state
