@@ -3,6 +3,7 @@
 # 9/9/25 - cg removes file splitting, optimizes for power bi, reduces csv size, keeps full summaries
 # 9/11/25 - cg keeps source_url, populates with domain, limits to 3 google news pages
 # 9/11/25 - cg adds quality scoring logic, removes relative file paths
+# 9/11/25 - cg fixes syntax error in calculate_quality_score
 
 import requests
 import random
@@ -165,6 +166,16 @@ def load_source_lists():
     
     return blacklist, whitelist
 
+# load filter_out_sources.csv
+filter_out_path = os.path.join(script_dir, 'filter_out_sources.csv')
+if os.path.exists(filter_out_path):
+    filter_out_df = pd.read_csv(filter_out_path, encoding='utf-8')
+    filtered_sources = set(filter_out_df.iloc[:, 0].dropna().str.lower().str.strip())
+    print(f"Loaded {len(filtered_sources)} filtered sources")
+else:
+    filtered_sources = set()
+    print("filter_out_sources.csv not found - no source filtering")
+
 # fetch articles concurrently
 def fetch_articles(term):
     print(f"Processing search term: '{term}'")
@@ -234,16 +245,6 @@ def fetch_articles(term):
             print(f"Request error for term {term} on page {page+1}: {e}")
             break
     return articles
-
-# load filter_out_sources.csv
-filter_out_path = os.path.join(script_dir, 'filter_out_sources.csv')
-if os.path.exists(filter_out_path):
-    filter_out_df = pd.read_csv(filter_out_path, encoding='utf-8')
-    filtered_sources = set(filter_out_df.iloc[:, 0].dropna().str.lower().str.strip())
-    print(f"Loaded {len(filtered_sources)} filtered sources")
-else:
-    filtered_sources = set()
-    print("filter_out_sources.csv not found - no source filtering")
 
 # fetch articles
 print("Fetching articles concurrently...")
@@ -379,7 +380,7 @@ def calculate_quality_score(title, article_text, source_text, search_terms, blac
         for term in search_terms
     )
     scores['search_term_matches'] = 1 if matches > 0 else 0
-    if scores['search_term_matches'] = 0 and scores['whitelist_bonus'] == 0:
+    if scores['search_term_matches'] == 0 and scores['whitelist_bonus'] == 0:
         scores['total_score'] = 0
         return scores  # early exit if not relevant and not whitelisted
     
