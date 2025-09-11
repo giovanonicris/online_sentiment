@@ -81,10 +81,11 @@ session.mount('https://', HTTPAdapter(max_retries=retries))
 script_dir = os.path.dirname(os.path.abspath(__file__))
 output_dir = os.path.join(script_dir, 'output')
 os.makedirs(output_dir, exist_ok=True)
-main_csv_path = os.path.join(output_dir, 'enterprise_risks_online_sentiment.csv')
-encoded_search_terms_csv = os.path.join(script_dir, 'EnterpriseRisksListEncoded.csv')
+main_csv_path = os.path.join(output_dir, 'emerging_risks_online_sentiment.csv')
+encoded_search_terms_csv = os.path.join(script_dir, 'EmergingRisksListEncoded.csv')
 
 print("*" * 50)
+print("PATH INFORMATION:")
 print(f"Script directory: {script_dir}")
 print(f"Output directory: {output_dir}")
 print(f"Main CSV path: {main_csv_path}")
@@ -94,7 +95,7 @@ print("*" * 50)
 # skip existing links check in debug mode for speed
 if DEBUG_MODE:
     existing_links = set()
-    print("DEBUG: Skipping existing links check for faster testing")
+    print("DEBUGGING - skipping existing links check for faster testing")
 else:
     if os.path.exists(main_csv_path):
         existing_df = pd.read_csv(main_csv_path, usecols=lambda x: 'LINK' in x, encoding="utf-8")
@@ -105,14 +106,14 @@ else:
 
 # load and decode search terms
 try:
-    read_file = pd.read_csv(encoded_search_terms_csv, encoding='utf-8', usecols=['ENTERPRISE_RISK_ID', 'SEARCH_TERM_ID', 'ENCODED_TERMS'])
-    read_file['ENTERPRISE_RISK_ID'] = pd.to_numeric(read_file['ENTERPRISE_RISK_ID'], downcast='integer', errors='coerce')
-    print(f"Successfully loaded EnterpriseRisksListEncoded.csv with {len(read_file)} rows")
+    read_file = pd.read_csv(encoded_search_terms_csv, encoding='utf-8', usecols=['EMERGING_RISK_ID', 'SEARCH_TERM_ID', 'ENCODED_TERMS'])
+    read_file['EMERGING_RISK_ID'] = pd.to_numeric(read_file['EMERGING_RISK_ID'], downcast='integer', errors='coerce')
+    print(f"Successfully loaded: EmergingRisksListEncoded.csv with {len(read_file)} rows")
 except FileNotFoundError:
-    print("ERROR!!! EnterpriseRisksListEncoded.csv not found!")
+    print("ERROR!!! EmergingRisksListEncoded.csv not found!")
     exit(1)
 except Exception as e:
-    print(f"ERROR loading EnterpriseRisksListEncoded.csv: {e}")
+    print(f"ERROR!!! loading EmergingRisksListEncoded.csv: {e}")
     exit(1)
 
 def process_encoded_search_terms(term):
@@ -130,6 +131,7 @@ read_file['SEARCH_TERMS'] = read_file['ENCODED_TERMS'].apply(process_encoded_sea
 
 # DEBUG FOR SEARCH TERMS
 print("*" * 50)
+print("SEARCH TERMS INFORMATION:")
 print(f"Loaded {len(read_file)} total rows from file")
 valid_terms = read_file['SEARCH_TERMS'].dropna()
 print(f"Valid search terms ({len(valid_terms)}): {valid_terms.tolist()}")
@@ -137,7 +139,7 @@ print(f"Valid search terms ({len(valid_terms)}): {valid_terms.tolist()}")
 # limit search terms for testing
 if DEBUG_MODE and MAX_SEARCH_TERMS:
     valid_terms = valid_terms.head(MAX_SEARCH_TERMS)
-    print(f"DEBUGGING - Limited to {len(valid_terms)} terms: {valid_terms.tolist()}")
+    print(f"DEBUG: Limited to {len(valid_terms)} terms: {valid_terms.tolist()}")
 elif len(valid_terms) > 100:
     valid_terms = valid_terms.head(100)  # limit terms in prod if too many
     print(f"Limited to {len(valid_terms)} terms to reduce load")
@@ -179,7 +181,7 @@ def fetch_articles(term):
             soup = BeautifulSoup(req.text, 'xml')
             for item in soup.find_all("item"):
                 if article_count >= MAX_ARTICLES_PER_TERM:
-                    print(f"DEBUGGING - stopping at {MAX_ARTICLES_PER_TERM} articles for term '{term}'")
+                    print(f"DEBUG: Stopping at {MAX_ARTICLES_PER_TERM} articles for term '{term}'")
                     break
                 title_text = item.title.text.strip()
                 encoded_url = item.link.text.strip()
@@ -295,13 +297,13 @@ def process_article(article_link):
         return {'summary': '', 'keywords': [], 'sentiment': 'neutral', 'polarity': '0.0'}
 
 if SKIP_ARTICLE_PROCESSING:
-    print("DEBUGGING - skipping slow article processing, using dummy data")
+    print("DEBUGGING: Skipping slow article processing, using dummy data")
     for i in range(len(link)):
         summary.append("DEBUG: Article processing skipped for faster testing")
         keywords.append(["debug", "test"])
         sentiments.append('neutral')
         polarity.append('0.0')
-    print(f"DEBUGGING - added dummy data for {len(link)} articles")
+    print(f"DEBUGGING: Added dummy data for {len(link)} articles")
 else:
     print("Processing articles concurrently with BeautifulSoup...")
     with ThreadPoolExecutor(max_workers=20) as executor:
@@ -343,7 +345,7 @@ print('Created sentiments')
 
 # merge with search terms data
 joined_df = pd.merge(alerts, read_file, on='SEARCH_TERMS', how='left')
-final_df = joined_df[['ENTERPRISE_RISK_ID', 'SEARCH_TERM_ID', 'TITLE', 'SUMMARY', 'KEYWORDS', 'PUBLISHED_DATE', 'LINK', 'SOURCE', 'SOURCE_URL', 'SENTIMENT', 'POLARITY']]
+final_df = joined_df[['EMERGING_RISK_ID', 'SEARCH_TERM_ID', 'TITLE', 'SUMMARY', 'KEYWORDS', 'PUBLISHED_DATE', 'LINK', 'SOURCE', 'SOURCE_URL', 'SENTIMENT', 'POLARITY']]
 final_df['LAST_RUN_TIMESTAMP'] = dt.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
 
 # calculate quality score
@@ -377,7 +379,7 @@ def calculate_quality_score(title, article_text, source_text, search_terms, blac
         for term in search_terms
     )
     scores['search_term_matches'] = 1 if matches > 0 else 0
-    if scores['search_term_matches'] == 0 and scores['whitelist_bonus'] == 0:
+    if scores['search_term_matches'] = 0 and scores['whitelist_bonus'] == 0:
         scores['total_score'] = 0
         return scores  # early exit if not relevant and not whitelisted
     
@@ -458,7 +460,7 @@ print("*" * 50)
 # load existing data and combine
 if os.path.exists(main_csv_path):
     existing_main_df = pd.read_csv(main_csv_path, parse_dates=['PUBLISHED_DATE'], encoding='utf-8')
-    print(f"loaded existing CSV with {len(existing_main_df)} records")
+    print(f"✓ Loaded existing CSV with {len(existing_main_df)} records")
 else:
     existing_main_df = pd.DataFrame()
     print("No existing CSV found - starting fresh")
@@ -478,7 +480,7 @@ cutoff_date = dt.datetime.now() - dt.timedelta(days=4 * 30)
 combined_df['PUBLISHED_DATE'] = pd.to_datetime(combined_df['PUBLISHED_DATE'], errors='coerce')
 
 if combined_df['PUBLISHED_DATE'].isna().any():
-    print("Warning-some rows have invalid PUBLISHED_DATE values.")
+    print("Warning: Some rows have invalid PUBLISHED_DATE values.")
 
 # separate current and old data
 current_df = combined_df[combined_df['PUBLISHED_DATE'] >= cutoff_date].copy()
@@ -500,17 +502,17 @@ print(f"File size: {file_size} bytes")
 print("*" * 50)
 if os.path.exists(main_csv_path):
     file_size = os.path.getsize(main_csv_path)
-    print(f"Output file exists at: {main_csv_path}")
-    print(f"File size: {file_size} bytes")
+    print(f"✓ Output file exists at: {main_csv_path}")
+    print(f"✓ File size: {file_size} bytes")
     if file_size > 0:
-        print("File preview:")
+        print("Preview file:")
         try:
             preview_df = pd.read_csv(main_csv_path).head(2)
             print(preview_df)
         except Exception as e:
             print(f"Could not preview file: {e}")
     else:
-        print("File is empty!")
+        print("File is empty!!!")
 else:
     print("ERROR!!! Output file not created!")
 print(f"Script completed at: {dt.datetime.now()}")
@@ -519,8 +521,8 @@ print("*" * 50)
 # archive old data
 if not DEBUG_MODE and not old_df.empty:
     old_df = old_df.sort_values(by='PUBLISHED_DATE')
-    archive_path = os.path.join(output_dir, 'enterprise_risks_sentiment_archive.csv')
+    archive_path = os.path.join(output_dir, 'emerging_risks_sentiment_archive.csv')
     old_df.to_csv(archive_path, index=False, encoding='utf-8', quoting=csv.QUOTE_MINIMAL)
     print(f"Archived {len(old_df)} records to {archive_path}.")
 elif DEBUG_MODE:
-    print("DEBUGGING- Skipping archival process")
+    print("DEBUGGING - skipping archival process")
