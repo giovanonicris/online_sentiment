@@ -40,7 +40,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install lxml[html_clean] newspaper3k vaderSentiment googlenewsdecoder
+          pip install lxml[html_clean] git+https://github.com/AndyTheFactory/newspaper4k vaderSentiment googlenewsdecoder
 
       - name: Run Enterprise Risk News script
         run: python EnterpriseRiskNews.py
@@ -98,7 +98,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install lxml[html_clean] newspaper3k vaderSentiment googlenewsdecoder
+          pip install lxml[html_clean] git+https://github.com/AndyTheFactory/newspaper4k vaderSentiment googlenewsdecoder
 
       - name: Run Emerging Risk News script
         run: python EmergingRiskNews.py
@@ -174,25 +174,3 @@ jobs:
           git config --global user.email "github-actions@users.noreply.github.com"
           git checkout main
           mkdir -p output
-          mv output/*.csv output/ 2>/dev/null || echo "No CSVs to move"
-          git add output/*.csv
-          if git diff --cached --quiet; then
-            echo "No changes detected in the CSV files"
-          else
-            echo "Changes detected, committing..."
-            git commit -m "Update Enterprise and Emerging Risk CSVs - $(date '+%Y-%m-%d %H:%M:%S')"
-            git push origin main
-          fi
-
-      - name: Debug final state
-        run: |
-          echo "****FINAL STATE DEBUG ******"
-          echo "output directory contains:"
-          ls -la output/
-          for file in output/*.csv; do
-            if [ -f "$file" ]; then
-              size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file")
-              echo "File: $file, Size: $size bytes"
-            fi
-          done
-          echo "*******************************"
