@@ -1,8 +1,9 @@
 # 7/25/25 - CG adds Debug mode for easier debugging and testing
 # 9/1/25 - CG optimizes GitHub Actions to do the ff: parallel processing, reduct CSV size, limit rates
-# 9/9/25 - cg removes file splitting, optimizes for power bi, reduces csv size, keeps full summaries
-# 9/11/25 - cg keeps source_url, populates with domain, limits to 3 google news pages
-# 9/11/25 - cg adds quality scoring logic, removes relative file paths
+# 9/9/25 - CG removes file splitting, optimizes for power bi, reduces csv size, keeps full summaries
+# 9/11/25 - CG keeps source_url, populates with domain, limits to 3 google news pages
+# 9/11/25 - CG adds quality scoring logic, removes relative file paths
+# 9/11/25 - CG fixes syntax error in calculate_quality_score
 
 import requests
 import random
